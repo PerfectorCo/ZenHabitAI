@@ -255,7 +255,7 @@ const App: React.FC = () => {
         onDeleteTask={deleteTask}
       />;
       case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} onLogTime={() => {}} onMarkComplete={() => {}} />;
-      case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} />;
+      case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} />;
       case 'profile': return <Profile profile={profile} onSave={() => {}} onLogout={handleLogout} />;
       default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
     }

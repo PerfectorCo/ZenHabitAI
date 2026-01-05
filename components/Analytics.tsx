@@ -1,33 +1,36 @@
 
 import React from 'react';
-import { Habit, FocusSession, Task } from '../types';
+import { Habit, FocusSession, Task, UserProfile } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Calendar as CalendarIcon, Trophy, TrendingUp, Sparkles, Wand2, CheckCircle, ClipboardList, Clock } from 'lucide-react';
 import { getAIInsights } from '../services/geminiService';
+import { useLanguage } from '../LanguageContext';
 
 interface AnalyticsProps {
   habits: Habit[];
   tasks: Task[];
   sessions: FocusSession[];
+  profile: UserProfile;
 }
 
 type Period = 'day' | 'week' | 'month';
 
-const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
+const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile }) => {
   const [period, setPeriod] = React.useState<Period>('week');
   const [aiInsight, setAiInsight] = React.useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = React.useState(false);
+  const { language, t } = useLanguage();
 
   const fetchInsight = async () => {
     setLoadingInsight(true);
-    const insight = await getAIInsights(habits, sessions, period);
+    const insight = await getAIInsights(habits, tasks, sessions, profile, period, language);
     setAiInsight(insight);
     setLoadingInsight(false);
   };
 
   React.useEffect(() => {
     fetchInsight();
-  }, [period]);
+  }, [period, language]);
 
   // Generate chart data based on period
   const getChartData = () => {
@@ -37,20 +40,15 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
       d.setDate(d.getDate() - (days - 1 - i));
       const dateStr = d.toISOString().split('T')[0];
       
-      // 1. Habit Completions (from checkmarks)
       const habitCheckmarks = habits.reduce((acc, h) => acc + (h.completedDates.includes(dateStr) ? 1 : 0), 0);
-      
-      // 2. Task Completions (from checkmarks in Task manager)
       const taskCheckmarks = tasks.reduce((acc, t) => acc + (t.completedDates?.includes(dateStr) ? 1 : 0), 0);
-
-      // 3. Focus Sessions (Time spent using timer for any task/habit)
       const focusSessionsCount = sessions.filter(s => 
         s.timestamp.startsWith(dateStr) && 
         s.type === 'focus'
       ).length;
       
       return {
-        date: days <= 7 ? d.toLocaleDateString('en-US', { weekday: 'short' }) : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
+        date: days <= 7 ? d.toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', { weekday: 'short' }) : d.toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', { day: 'numeric', month: 'short' }),
         "Habit Wins": habitCheckmarks,
         "Task Wins": taskCheckmarks,
         "Focus Power": focusSessionsCount,
@@ -68,8 +66,8 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Growth & Productivity</h1>
-          <p className="text-slate-500">Comprehensive overview of habits, tasks, and focus sessions.</p>
+          <h1 className="text-3xl font-bold text-slate-900">{t('analytics.header')}</h1>
+          <p className="text-slate-500">{t('analytics.subtitle')}</p>
         </div>
         <div className="inline-flex p-1 bg-slate-100 rounded-xl">
           {(['day', 'week', 'month'] as Period[]).map((p) => (
@@ -93,9 +91,11 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-indigo-400">
+              {/* Fix: replaced invalid 'point' tag with 'div' */}
+              <div className="animate-pulse w-2 h-2 bg-indigo-400 rounded-full mr-2" />
               <Sparkles size={20} />
             </div>
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">Zen Sensei Insights</span>
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">{t('analytics.zenInsights')}</span>
           </div>
           {loadingInsight ? (
             <div className="space-y-3 animate-pulse">
@@ -111,7 +111,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
             onClick={fetchInsight}
             className="mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
           >
-            <Wand2 size={12} /> Analyze New Data
+            <Wand2 size={12} /> {t('analytics.analyzeNew')}
           </button>
         </div>
         <div className="absolute top-[-20%] right-[-10%] opacity-10 pointer-events-none">
@@ -122,10 +122,10 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
       {/* Main Stats Grid */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Total Completions', value: totalCompletions, icon: Trophy, color: 'indigo', sub: 'Habits + Tasks' },
-          { label: 'Focus Time', value: `${totalFocusMins}m`, icon: Clock, color: 'emerald', sub: 'Active work' },
-          { label: 'Active Tasks', value: tasks.length, icon: ClipboardList, color: 'amber', sub: `${totalTasksCompleted} done today` },
-          { label: 'Growth Period', value: period.charAt(0).toUpperCase() + period.slice(1), icon: CalendarIcon, color: 'violet', sub: 'Current view' }
+          { label: t('analytics.totalCompletions'), value: totalCompletions, icon: Trophy, color: 'indigo', sub: 'Habits + Tasks' },
+          { label: t('analytics.focusTime'), value: `${totalFocusMins}m`, icon: Clock, color: 'emerald', sub: 'Active work' },
+          { label: t('analytics.activeTasks'), value: tasks.length, icon: ClipboardList, color: 'amber', sub: `${totalTasksCompleted} done` },
+          { label: t('analytics.growthPeriod'), value: period.charAt(0).toUpperCase() + period.slice(1), icon: CalendarIcon, color: 'violet', sub: 'Current view' }
         ].map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -148,12 +148,11 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          {/* Trend Chart - Activity Heatwave Enhanced */}
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <TrendingUp size={20} className="text-indigo-500" />
-                Activity Heatwave
+                {t('analytics.heatwave')}
               </h3>
             </div>
             <div className="h-[320px]">
@@ -212,11 +211,10 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
             </div>
           </div>
 
-          {/* Task Completion Breakdown */}
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
                 <CheckCircle size={20} className="text-emerald-500" />
-                Current Tasks Performance
+                {t('analytics.performance')}
              </h3>
              {tasks.length === 0 ? (
                <div className="text-center py-10 text-slate-400 italic font-medium">No tasks to analyze today.</div>
@@ -251,25 +249,22 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
                            <span className="text-2xl font-black text-slate-900">{Math.round((totalTasksCompleted / (tasks.length || 1)) * 100)}%</span>
                         </div>
                      </div>
-                     <p className="text-xs font-black uppercase tracking-widest text-slate-400">Task Completion Rate</p>
+                     <p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('analytics.completionRate')}</p>
                   </div>
                </div>
              )}
           </div>
         </div>
 
-        {/* Sidebar Analytics */}
         <div className="space-y-8">
-          {/* Consistency Sidebar */}
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
             <h3 className="text-lg font-bold text-slate-900 mb-8 flex items-center gap-2">
                <Trophy size={20} className="text-indigo-500" />
-               Consistency List
+               {t('analytics.consistency')}
             </h3>
             <div className="space-y-8">
-               {/* Habits Section */}
                <div className="space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-50 pb-2">Habits Strength</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-50 pb-2">{t('analytics.habitStrength')}</p>
                   {habits.length === 0 ? (
                     <p className="text-xs text-slate-300 italic">No habits tracking...</p>
                   ) : (
@@ -295,14 +290,12 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions }) => {
                   )}
                </div>
 
-               {/* Focus Sessions Breakdown */}
                <div className="space-y-4 pt-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-50 pb-2">Focus Distribution</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-50 pb-2">{t('analytics.focusDist')}</p>
                   {sessions.length === 0 ? (
                     <p className="text-xs text-slate-300 italic">No focus sessions yet.</p>
                   ) : (
                     <div className="space-y-3">
-                       {/* Top 3 Focus Areas */}
                        {Array.from(new Set(sessions.map(s => s.goalTitle))).slice(0, 3).map(title => {
                           const time = sessions.filter(s => s.goalTitle === title).reduce((acc, s) => acc + s.durationMinutes, 0);
                           const total = sessions.reduce((acc, s) => acc + s.durationMinutes, 0);
