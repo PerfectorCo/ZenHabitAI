@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Habit, FocusSession, Task, UserProfile } from '../types';
+import { Habit, FocusSession, Task, UserProfile, StoredAIInsights } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Calendar as CalendarIcon, Trophy, TrendingUp, Sparkles, Wand2, CheckCircle, ClipboardList, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, Trophy, TrendingUp, Sparkles, Wand2, CheckCircle, ClipboardList, Clock, RefreshCw } from 'lucide-react';
 import { getAIInsights } from '../services/geminiService';
 import { useLanguage } from '../LanguageContext';
+import { StorageService } from '../services/storageService';
 
 interface AnalyticsProps {
   habits: Habit[];
@@ -15,16 +16,43 @@ interface AnalyticsProps {
 
 type Period = 'day' | 'week' | 'month';
 
+const INSIGHT_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
 const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile }) => {
   const [period, setPeriod] = React.useState<Period>('week');
   const [aiInsight, setAiInsight] = React.useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = React.useState(false);
   const { language, t } = useLanguage();
 
-  const fetchInsight = async () => {
+  const fetchInsight = async (forceRefresh = false) => {
     setLoadingInsight(true);
+    
+    if (!forceRefresh) {
+      const storedInsights = StorageService.getStoredAIInsights();
+      const cached = storedInsights.find(i => i.period === period);
+      if (cached) {
+        const isStale = Date.now() - new Date(cached.timestamp).getTime() > INSIGHT_CACHE_TTL;
+        const langChanged = cached.language !== language;
+        if (!isStale && !langChanged) {
+          setAiInsight(cached.insight);
+          setLoadingInsight(false);
+          return;
+        }
+      }
+    }
+
     const insight = await getAIInsights(habits, tasks, sessions, profile, period, language);
     setAiInsight(insight);
+    
+    // Cache the result
+    const newCache: StoredAIInsights = {
+      period,
+      insight,
+      timestamp: new Date().toISOString(),
+      language: language
+    };
+    StorageService.saveAIInsight(newCache);
+    
     setLoadingInsight(false);
   };
 
@@ -32,7 +60,6 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
     fetchInsight();
   }, [period, language]);
 
-  // Generate chart data based on period
   const getChartData = () => {
     const days = period === 'day' ? 1 : period === 'week' ? 7 : 30;
     return Array.from({ length: days }, (_, i) => {
@@ -86,12 +113,10 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
         </div>
       </header>
 
-      {/* AI Insight Section */}
       <section className="bg-gradient-to-br from-slate-900 to-indigo-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-indigo-400">
-              {/* Fix: replaced invalid 'point' tag with 'div' */}
               <div className="animate-pulse w-2 h-2 bg-indigo-400 rounded-full mr-2" />
               <Sparkles size={20} />
             </div>
@@ -108,10 +133,11 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
             </p>
           )}
           <button 
-            onClick={fetchInsight}
-            className="mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+            onClick={() => fetchInsight(true)}
+            disabled={loadingInsight}
+            className="mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors disabled:opacity-50"
           >
-            <Wand2 size={12} /> {t('analytics.analyzeNew')}
+            <RefreshCw size={12} className={loadingInsight ? "animate-spin" : ""} /> {t('analytics.analyzeNew')}
           </button>
         </div>
         <div className="absolute top-[-20%] right-[-10%] opacity-10 pointer-events-none">
@@ -119,7 +145,6 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
         </div>
       </section>
 
-      {/* Main Stats Grid */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
           { label: t('analytics.totalCompletions'), value: totalCompletions, icon: Trophy, color: 'indigo', sub: 'Habits + Tasks' },

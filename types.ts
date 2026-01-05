@@ -76,4 +76,28 @@ export interface Recommendation {
   };
 }
 
+export interface StoredAIRecommendations {
+  recommendations: Recommendation[];
+  timestamp: string;
+  mainGoal: string;
+  language: string;
+}
+
+export interface StoredAIInsights {
+  period: string;
+  insight: string;
+  timestamp: string;
+  language: string;
+}
+
+export interface Recommendation {
+  title: string;
+  reason: string;
+  priority: 'low' | 'medium' | 'high';
+  suggestedHabit?: {
+    title: string;
+    category: string;
+  };
+}
+
 export type ViewType = 'dashboard' | 'habits' | 'pomodoro' | 'analytics' | 'profile' | 'onboarding' | 'feedback';

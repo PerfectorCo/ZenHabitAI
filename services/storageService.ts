@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Habit, Task, UserProfile, FocusSession, Category, TaskTemplate, FeedbackSubmission } from '../types';
+import { Habit, Task, UserProfile, FocusSession, Category, TaskTemplate, FeedbackSubmission, StoredAIRecommendations, StoredAIInsights } from '../types';
 
 // Retrieve keys from process.env
 const SUPABASE_URL = (process.env as any).SUPABASE_URL;
@@ -25,7 +25,9 @@ const STORAGE_KEYS = {
   PROFILE: 'zenhabit_db_profile',
   FOCUS_SESSIONS: 'zenhabit_db_focus_sessions',
   CATEGORIES: 'zenhabit_db_categories',
-  FEEDBACK: 'zenhabit_db_feedback'
+  FEEDBACK: 'zenhabit_db_feedback',
+  AI_RECS: 'zenhabit_db_ai_recs',
+  AI_INSIGHTS: 'zenhabit_db_ai_insights'
 };
 
 export const StorageService = {
@@ -42,15 +44,7 @@ export const StorageService = {
   getUserId: () => localStorage.getItem(STORAGE_KEYS.USER_ID) || 'mock-user-123',
 
   clearAll: () => {
-    localStorage.removeItem(STORAGE_KEYS.SESSION);
-    localStorage.removeItem(STORAGE_KEYS.USER_ID);
-    localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
-    localStorage.removeItem(STORAGE_KEYS.HABITS);
-    localStorage.removeItem(STORAGE_KEYS.TASKS);
-    localStorage.removeItem(STORAGE_KEYS.TEMPLATES);
-    localStorage.removeItem(STORAGE_KEYS.PROFILE);
-    localStorage.removeItem(STORAGE_KEYS.FOCUS_SESSIONS);
-    localStorage.removeItem(STORAGE_KEYS.FEEDBACK);
+    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
   },
 
   // Category Operations
@@ -108,19 +102,12 @@ export const StorageService = {
     const local = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (local) {
       const parsed = JSON.parse(local);
-      // Data migration for mainGoals array -> mainGoal single string
       if (Array.isArray(parsed.mainGoals)) {
         parsed.mainGoal = parsed.mainGoals.length > 0 ? parsed.mainGoals[0] : '';
         delete parsed.mainGoals;
       }
-      // Ensure customGoalOptions exists
-      if (!parsed.customGoalOptions) {
-        parsed.customGoalOptions = [];
-      }
-      // Ensure hiddenStandardGoals exists
-      if (!parsed.hiddenStandardGoals) {
-        parsed.hiddenStandardGoals = [];
-      }
+      if (!parsed.customGoalOptions) parsed.customGoalOptions = [];
+      if (!parsed.hiddenStandardGoals) parsed.hiddenStandardGoals = [];
       return parsed;
     }
 
@@ -157,10 +144,9 @@ export const StorageService = {
           .eq('user_id', userId);
         if (!error && data) return data;
       } catch (e) {
-        console.warn("Supabase habits fetch failed, using local storage", e);
+        console.warn("Supabase habits fetch failed", e);
       }
     }
-    
     const local = localStorage.getItem(STORAGE_KEYS.HABITS);
     return local ? JSON.parse(local) : [];
   },
@@ -168,11 +154,8 @@ export const StorageService = {
   saveHabit: async (userId: string, habit: Habit) => {
     const localHabits = JSON.parse(localStorage.getItem(STORAGE_KEYS.HABITS) || '[]');
     const index = localHabits.findIndex((h: Habit) => h.id === habit.id);
-    if (index > -1) {
-      localHabits[index] = habit;
-    } else {
-      localHabits.push(habit);
-    }
+    if (index > -1) localHabits[index] = habit;
+    else localHabits.push(habit);
     localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(localHabits));
 
     if (supabase) {
@@ -187,7 +170,6 @@ export const StorageService = {
   deleteHabit: async (habitId: string) => {
     const localHabits = JSON.parse(localStorage.getItem(STORAGE_KEYS.HABITS) || '[]');
     localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(localHabits.filter((h: Habit) => h.id !== habitId)));
-
     if (supabase) {
       try {
         await supabase.from('habits').delete().eq('id', habitId);
@@ -207,10 +189,9 @@ export const StorageService = {
           .eq('user_id', userId);
         if (!error && data) return data;
       } catch (e) {
-        console.warn("Supabase tasks fetch failed, using local storage", e);
+        console.warn("Supabase tasks fetch failed", e);
       }
     }
-    
     const local = localStorage.getItem(STORAGE_KEYS.TASKS);
     return local ? JSON.parse(local) : [];
   },
@@ -218,11 +199,8 @@ export const StorageService = {
   saveTask: async (userId: string, task: Task) => {
     const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
     const index = localTasks.findIndex((t: Task) => t.id === task.id);
-    if (index > -1) {
-      localTasks[index] = task;
-    } else {
-      localTasks.push(task);
-    }
+    if (index > -1) localTasks[index] = task;
+    else localTasks.push(task);
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(localTasks));
 
     if (supabase) {
@@ -237,7 +215,6 @@ export const StorageService = {
   deleteTask: async (taskId: string) => {
     const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(localTasks.filter((t: Task) => t.id !== taskId)));
-
     if (supabase) {
       try {
         await supabase.from('tasks').delete().eq('id', taskId);
@@ -247,14 +224,11 @@ export const StorageService = {
     }
   },
 
-  // Template (Preset) Operations
+  // Template Operations
   getTaskTemplates: async (userId: string): Promise<TaskTemplate[]> => {
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('task_templates')
-          .select('*')
-          .eq('user_id', userId);
+        const { data, error } = await supabase.from('task_templates').select('*').eq('user_id', userId);
         if (!error && data) return data;
       } catch (e) {
         console.warn("Supabase templates fetch failed", e);
@@ -269,9 +243,7 @@ export const StorageService = {
     const index = local.findIndex((t: TaskTemplate) => t.id === template.id);
     if (index > -1) local[index] = template;
     else local.push(template);
-    
     localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(local));
-
     if (supabase) {
       try {
         await supabase.from('task_templates').upsert({ user_id: userId, ...template });
@@ -284,7 +256,6 @@ export const StorageService = {
   deleteTaskTemplate: async (userId: string, templateId: string) => {
     const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEMPLATES) || '[]');
     localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(local.filter((t: TaskTemplate) => t.id !== templateId)));
-
     if (supabase) {
       try {
         await supabase.from('task_templates').delete().eq('id', templateId).eq('user_id', userId);
@@ -298,11 +269,7 @@ export const StorageService = {
   getFocusSessions: async (userId: string): Promise<FocusSession[]> => {
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('focus_sessions')
-          .select('*')
-          .eq('user_id', userId)
-          .order('timestamp', { ascending: false });
+        const { data, error } = await supabase.from('focus_sessions').select('*').eq('user_id', userId).order('timestamp', { ascending: false });
         if (!error && data) return data;
       } catch (e) {
         console.warn("Supabase focus sessions fetch failed", e);
@@ -316,7 +283,6 @@ export const StorageService = {
     const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.FOCUS_SESSIONS) || '[]');
     local.unshift(session);
     localStorage.setItem(STORAGE_KEYS.FOCUS_SESSIONS, JSON.stringify(local));
-
     if (supabase) {
       try {
         await supabase.from('focus_sessions').upsert({ user_id: userId, ...session });
@@ -326,18 +292,35 @@ export const StorageService = {
     }
   },
 
-  // Feedback Operations
+  // Feedback
   saveFeedback: async (feedback: FeedbackSubmission) => {
     const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.FEEDBACK) || '[]');
     local.push(feedback);
     localStorage.setItem(STORAGE_KEYS.FEEDBACK, JSON.stringify(local));
-    
     if (supabase) {
-      try {
-        await supabase.from('feedback').insert(feedback);
-      } catch (e) {
-        console.error("Supabase feedback save failed", e);
-      }
+      try { await supabase.from('feedback').insert(feedback); } catch (e) { console.error("Supabase feedback save failed", e); }
     }
+  },
+
+  // AI Cache Methods
+  getStoredAIRecommendations: (): StoredAIRecommendations | null => {
+    const local = localStorage.getItem(STORAGE_KEYS.AI_RECS);
+    return local ? JSON.parse(local) : null;
+  },
+
+  saveAIRecommendations: (data: StoredAIRecommendations) => {
+    localStorage.setItem(STORAGE_KEYS.AI_RECS, JSON.stringify(data));
+  },
+
+  getStoredAIInsights: (): StoredAIInsights[] => {
+    const local = localStorage.getItem(STORAGE_KEYS.AI_INSIGHTS);
+    return local ? JSON.parse(local) : [];
+  },
+
+  saveAIInsight: (insight: StoredAIInsights) => {
+    const current = StorageService.getStoredAIInsights();
+    const updated = current.filter(i => i.period !== insight.period);
+    updated.push(insight);
+    localStorage.setItem(STORAGE_KEYS.AI_INSIGHTS, JSON.stringify(updated));
   }
 };

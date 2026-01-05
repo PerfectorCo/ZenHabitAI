@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check } from 'lucide-react';
-import { Habit, Task, Recommendation, UserProfile } from '../types';
+import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw } from 'lucide-react';
+import { Habit, Task, Recommendation, UserProfile, StoredAIRecommendations } from '../types';
 import { getAIRecommendations } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '../LanguageContext';
+import { StorageService } from '../services/storageService';
 
 interface DashboardProps {
   habits: Habit[];
@@ -13,19 +14,50 @@ interface DashboardProps {
   onAddHabit: (title: string, category: string) => void;
 }
 
+const RECS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
 const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabit }) => {
   const [recommendations, setRecommendations] = React.useState<Recommendation[]>([]);
   const [loadingAI, setLoadingAI] = React.useState(true);
   const [addedIds, setAddedIds] = React.useState<number[]>([]);
   const { t, language } = useLanguage();
 
-  React.useEffect(() => {
-    const fetchRecs = async () => {
-      setLoadingAI(true);
-      const recs = await getAIRecommendations(habits, profile, language);
-      setRecommendations(recs);
-      setLoadingAI(false);
+  const fetchRecs = async (forceRefresh = false) => {
+    setLoadingAI(true);
+    
+    // Check cache first if not forcing refresh
+    if (!forceRefresh) {
+      const stored = StorageService.getStoredAIRecommendations();
+      if (stored) {
+        const isStale = Date.now() - new Date(stored.timestamp).getTime() > RECS_CACHE_TTL;
+        const goalChanged = stored.mainGoal !== profile.mainGoal;
+        const langChanged = stored.language !== language;
+
+        if (!isStale && !goalChanged && !langChanged) {
+          setRecommendations(stored.recommendations);
+          setLoadingAI(false);
+          return;
+        }
+      }
+    }
+
+    // Call Gemini API
+    const recs = await getAIRecommendations(habits, profile, language);
+    setRecommendations(recs);
+    
+    // Save to cache
+    const newCache: StoredAIRecommendations = {
+      recommendations: recs,
+      timestamp: new Date().toISOString(),
+      mainGoal: profile.mainGoal,
+      language: language
     };
+    StorageService.saveAIRecommendations(newCache);
+    
+    setLoadingAI(false);
+  };
+
+  React.useEffect(() => {
     fetchRecs();
   }, [language, profile.mainGoal]); 
 
@@ -98,6 +130,14 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
               <Sparkles className="text-indigo-500" size={20} />
               {t('dashboard.aiRecs')}
             </h2>
+            <button 
+              onClick={() => fetchRecs(true)} 
+              disabled={loadingAI}
+              className="p-2 text-slate-400 hover:text-indigo-600 transition-colors disabled:opacity-50"
+              title="Refresh recommendations"
+            >
+              <RefreshCw size={16} className={loadingAI ? "animate-spin" : ""} />
+            </button>
           </div>
           <div className="space-y-4">
             {loadingAI ? (
