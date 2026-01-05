@@ -27,7 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
       setLoadingAI(false);
     };
     fetchRecs();
-  }, [language]); 
+  }, [language, profile.mainGoal]); 
 
   const handleAddSuggestedHabit = (rec: Recommendation, index: number) => {
     if (rec.suggestedHabit) {
@@ -45,13 +45,15 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
     completions: h.completedDates.length
   }));
 
+  const mainGoalText = profile.mainGoal || t('profile.goals.prod');
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
           {t('dashboard.welcome')}, {profile.name.split(' ')[0]}!
         </h1>
-        <p className="text-slate-500">{t('dashboard.focusForToday')}: <span className="text-indigo-600 font-medium">{profile.mainGoal}</span></p>
+        <p className="text-slate-500">{t('dashboard.focusForToday')}: <span className="text-indigo-600 font-medium">{mainGoalText}</span></p>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">

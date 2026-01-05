@@ -18,10 +18,11 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
   const daysSinceJoined = Math.floor((new Date().getTime() - joinedDate.getTime()) / (1000 * 3600 * 24));
   
   const isNewUser = daysSinceJoined < 3 && totalHistoricalCompletions === 0;
+  const focusArea = profile.mainGoal || 'General growth';
 
   const prompt = `User Profile:
   Name: ${profile.name}
-  Main Habit Focus (Goal): ${profile.mainGoal}
+  Main Habit Focus (Goal): ${focusArea}
   Bio: ${profile.bio}
   User State: ${isNewUser ? 'BRAND NEW USER (just started)' : 'EXISTING USER'}
 
@@ -33,14 +34,14 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
   Provide 3 highly personalized habit recommendations. 
   
   Personalization Rules:
-  1. If BRAND NEW USER: Suggest foundational habits that align perfectly with their "Main Habit Focus" (${profile.mainGoal}). Keep them easy to start (Atomic Habits style).
+  1. If BRAND NEW USER: Suggest foundational habits that align perfectly with their "Main Habit Focus" (${focusArea}). Keep them easy to start (Atomic Habits style).
   2. If EXISTING USER: Suggest habits that complement their existing routine or address gaps in their "Main Habit Focus".
   3. Tone: Supportive, wise, and encouraging.
   4. Language: Use natural, conversational ${lang === 'vi' ? 'Vietnamese' : 'English'}. Avoid unusual characters like semicolons (;).
   
   JSON Structure:
   - title: A catchy title for the recommendation.
-  - reason: Why this fits their current focus (${profile.mainGoal}) and state.
+  - reason: Why this fits their current focus (${focusArea}) and state.
   - priority: 'low', 'medium', or 'high'.
   - suggestedHabit: An object with 'title' and 'category' (Health, Mindset, Work, or Skills) that the user can add.
 
@@ -98,11 +99,12 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
   
   const isNewUser = daysSinceJoined < 3 && totalHistoricalCompletions === 0;
   const isInactiveUser = daysSinceJoined >= 7 && habitsSummary.every(h => h.completions === 0) && tasksSummary.every(t => !t.completed) && totalFocus === 0;
+  const focusArea = profile.mainGoal || 'their goals';
 
   const prompt = `Contextual Analysis for User: ${profile.name}
   Joined Date: ${profile.joinedDate} (${daysSinceJoined} days ago)
   Total History Completions: ${totalHistoricalCompletions}
-  Main Goal: ${profile.mainGoal}
+  Main Goal: ${focusArea}
   
   Recent Data (${period}):
   - Habits: ${JSON.stringify(habitsSummary)}
@@ -114,9 +116,9 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
 
   Your Task:
   As a 'Zen Sensei' life coach, provide a brief, warm, and natural conversational insight (max 3 sentences).
-  - If they are a BRAND NEW USER: Welcome them warmly. Focus on their chosen goal: ${profile.mainGoal}.
-  - If they are an INACTIVE USER: Offer gentle encouragement to return to ${profile.mainGoal}. Remind them that every day is a fresh beginning.
-  - If they are an ACTIVE USER: Praise their progress toward ${profile.mainGoal}.
+  - If they are a BRAND NEW USER: Welcome them warmly. Focus on their chosen goal: ${focusArea}.
+  - If they are an INACTIVE USER: Offer gentle encouragement to return to ${focusArea}. Remind them that every day is a fresh beginning.
+  - If they are an ACTIVE USER: Praise their progress toward ${focusArea}.
   
   Rules:
   - Use smooth, natural, human language.

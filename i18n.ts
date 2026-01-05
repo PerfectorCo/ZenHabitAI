@@ -8,7 +8,8 @@ export const translations = {
       habits: 'Habits & Tasks',
       focus: 'Focus Timer',
       analytics: 'Analytics',
-      profile: 'Profile'
+      profile: 'Profile',
+      feedback: 'Feedback'
     },
     common: {
       save: 'Save Changes',
@@ -21,7 +22,22 @@ export const translations = {
       days: 'Days',
       minutes: 'Minutes',
       status: 'Status',
-      ok: 'OK'
+      ok: 'OK',
+      submit: 'Submit'
+    },
+    feedback: {
+      header: 'Send Feedback',
+      subtitle: 'Your suggestions help us build a better ZenHabit AI.',
+      typeLabel: 'Feedback Type',
+      types: {
+        bug: 'Report a Bug',
+        suggestion: 'New Feature Suggestion',
+        other: 'General Feedback'
+      },
+      messageLabel: 'Your Message',
+      messagePlh: 'Tell us what you are thinking...',
+      success: 'Thank you! Your feedback has been received.',
+      error: 'Something went wrong. Please try again later.'
     },
     auth: {
       welcome: 'ZenHabit AI',
@@ -29,6 +45,11 @@ export const translations = {
       google: 'Continue with Google',
       facebook: 'Continue with Facebook',
       terms: 'By continuing, you agree to our Terms of Service'
+    },
+    onboarding: {
+      customGoal: 'Add your own goal...',
+      customGoalPlh: 'e.g. Mastering Digital Art',
+      customGoalAdd: 'Set custom goal'
     },
     dashboard: {
       welcome: 'Welcome back',
@@ -115,6 +136,7 @@ export const translations = {
       permissions: 'System Permissions',
       notifications: 'Browser Notifications',
       enableNow: 'Enable Now',
+      customGoal: 'Custom Goal',
       goals: {
         prod: 'Improve productivity',
         fitness: 'Physical fitness',
@@ -129,7 +151,8 @@ export const translations = {
       habits: 'Thói quen & Công việc',
       focus: 'Hẹn giờ tập trung',
       analytics: 'Phân tích',
-      profile: 'Cá nhân'
+      profile: 'Cá nhân',
+      feedback: 'Góp ý'
     },
     common: {
       save: 'Lưu thay đổi',
@@ -142,7 +165,22 @@ export const translations = {
       days: 'Ngày',
       minutes: 'Phút',
       status: 'Trạng thái',
-      ok: 'Đồng ý'
+      ok: 'Đồng ý',
+      submit: 'Gửi góp ý'
+    },
+    feedback: {
+      header: 'Gửi Góp Ý',
+      subtitle: 'Những đề xuất của bạn giúp chúng tôi hoàn thiện ZenHabit AI tốt hơn.',
+      typeLabel: 'Loại góp ý',
+      types: {
+        bug: 'Báo lỗi (Bug)',
+        suggestion: 'Đề xuất chức năng mới',
+        other: 'Ý kiến khác'
+      },
+      messageLabel: 'Nội dung',
+      messagePlh: 'Hãy chia sẻ suy nghĩ của bạn tại đây...',
+      success: 'Cảm ơn bạn! Góp ý của bạn đã được ghi nhận.',
+      error: 'Có lỗi xảy ra. Vui lòng thử lại sau.'
     },
     auth: {
       welcome: 'ZenHabit AI',
@@ -150,6 +188,11 @@ export const translations = {
       google: 'Tiếp tục với Google',
       facebook: 'Tiếp tục với Facebook',
       terms: 'Bằng cách tiếp tục, bạn đồng ý với Điều khoản dịch vụ của chúng tôi'
+    },
+    onboarding: {
+      customGoal: 'Thêm mục tiêu riêng...',
+      customGoalPlh: 'vd: Học hội họa kỹ thuật số',
+      customGoalAdd: 'Sử dụng mục tiêu này'
     },
     dashboard: {
       welcome: 'Chào mừng trở lại',
@@ -236,6 +279,7 @@ export const translations = {
       permissions: 'Quyền hệ thống',
       notifications: 'Thông báo trình duyệt',
       enableNow: 'Bật ngay',
+      customGoal: 'Mục tiêu tự chọn',
       goals: {
         prod: 'Nâng cao năng suất',
         fitness: 'Thể chất khỏe mạnh',

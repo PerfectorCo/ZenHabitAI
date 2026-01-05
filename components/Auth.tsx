@@ -3,7 +3,7 @@ import React from 'react';
 import { Timer, Sparkles, LogIn } from 'lucide-react';
 
 interface AuthProps {
-  onLogin: (provider: 'google' | 'facebook') => void;
+  onLogin: (provider: 'google' | 'facebook', email: string) => void;
 }
 
 const Auth: React.FC<AuthProps> = ({ onLogin }) => {
@@ -13,7 +13,9 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setIsLoading(provider);
     // Simulate OAuth Redirect/Popup delay
     setTimeout(() => {
-      onLogin(provider);
+      // Mock email for testing
+      const mockEmail = provider === 'google' ? 'zen.explorer@gmail.com' : 'zen.social@fb.com';
+      onLogin(provider, mockEmail);
     }, 1500);
   };
 

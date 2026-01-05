@@ -7,6 +7,8 @@ import PomodoroTimer from './components/PomodoroTimer';
 import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import Auth from './components/Auth';
+import Onboarding from './components/Onboarding';
+import Feedback from './components/Feedback';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
 import { StorageService } from './services/storageService';
 import { useLanguage } from './LanguageContext';
@@ -88,8 +90,13 @@ const App: React.FC = () => {
         setTaskTemplates(templates);
         setFocusSessions(fetchedSessions);
         
-        const processedTasks = await checkAndResetDailyTasks(fetchedTasks);
-        setTasks(processedTasks);
+        // If profile is default or lacks onboarding, switch view to onboarding
+        if (!fetchedProfile.onboardingCompleted) {
+          setView('onboarding');
+        } else {
+          const processedTasks = await checkAndResetDailyTasks(fetchedTasks);
+          setTasks(processedTasks);
+        }
       } catch (error) {
         console.error("Database fetch failed", error);
       } finally {
@@ -110,6 +117,24 @@ const App: React.FC = () => {
     setFocusSessions([]);
     setCategories([]);
     setTaskTemplates([]);
+  };
+
+  const handleOnboardingComplete = async (onboardingData: Partial<UserProfile>) => {
+    const userId = StorageService.getUserId();
+    const newProfile: UserProfile = {
+      name: onboardingData.name || 'Zen User',
+      email: onboardingData.email || '',
+      bio: onboardingData.bio || '',
+      mainGoal: onboardingData.mainGoal || '',
+      customGoalOptions: onboardingData.customGoalOptions || [],
+      hiddenStandardGoals: onboardingData.hiddenStandardGoals || [],
+      joinedDate: onboardingData.joinedDate || new Date().toISOString(),
+      onboardingCompleted: true
+    };
+    
+    setProfile(newProfile);
+    await StorageService.saveProfile(userId, newProfile);
+    setView('dashboard');
   };
 
   const addHabit = async (title: string, category: string, reminderTime?: string) => {
@@ -219,10 +244,14 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    return <Auth onLogin={() => {
+    return <Auth onLogin={(provider, email) => {
       StorageService.setSession(true, `user-${Date.now()}`);
       setIsAuthenticated(true);
     }} />;
+  }
+
+  if (view === 'onboarding') {
+    return <Onboarding onComplete={handleOnboardingComplete} userEmail={profile?.email || 'newuser@zenhabit.ai'} />;
   }
 
   if (isLoading || !profile) {
@@ -256,7 +285,8 @@ const App: React.FC = () => {
       />;
       case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} onLogTime={() => {}} onMarkComplete={() => {}} />;
       case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} />;
-      case 'profile': return <Profile profile={profile} onSave={() => {}} onLogout={handleLogout} />;
+      case 'profile': return <Profile profile={profile} onSave={(p) => setProfile(p)} onLogout={handleLogout} />;
+      case 'feedback': return <Feedback />;
       default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
     }
   };

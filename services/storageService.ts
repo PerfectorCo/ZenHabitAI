@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Habit, Task, UserProfile, FocusSession, Category, TaskTemplate } from '../types';
+import { Habit, Task, UserProfile, FocusSession, Category, TaskTemplate, FeedbackSubmission } from '../types';
 
 // Retrieve keys from process.env
 const SUPABASE_URL = (process.env as any).SUPABASE_URL;
@@ -24,7 +24,8 @@ const STORAGE_KEYS = {
   TEMPLATES: 'zenhabit_db_templates',
   PROFILE: 'zenhabit_db_profile',
   FOCUS_SESSIONS: 'zenhabit_db_focus_sessions',
-  CATEGORIES: 'zenhabit_db_categories'
+  CATEGORIES: 'zenhabit_db_categories',
+  FEEDBACK: 'zenhabit_db_feedback'
 };
 
 export const StorageService = {
@@ -49,6 +50,7 @@ export const StorageService = {
     localStorage.removeItem(STORAGE_KEYS.TEMPLATES);
     localStorage.removeItem(STORAGE_KEYS.PROFILE);
     localStorage.removeItem(STORAGE_KEYS.FOCUS_SESSIONS);
+    localStorage.removeItem(STORAGE_KEYS.FEEDBACK);
   },
 
   // Category Operations
@@ -104,12 +106,33 @@ export const StorageService = {
     }
     
     const local = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    return local ? JSON.parse(local) : {
+    if (local) {
+      const parsed = JSON.parse(local);
+      // Data migration for mainGoals array -> mainGoal single string
+      if (Array.isArray(parsed.mainGoals)) {
+        parsed.mainGoal = parsed.mainGoals.length > 0 ? parsed.mainGoals[0] : '';
+        delete parsed.mainGoals;
+      }
+      // Ensure customGoalOptions exists
+      if (!parsed.customGoalOptions) {
+        parsed.customGoalOptions = [];
+      }
+      // Ensure hiddenStandardGoals exists
+      if (!parsed.hiddenStandardGoals) {
+        parsed.hiddenStandardGoals = [];
+      }
+      return parsed;
+    }
+
+    return {
       name: 'Zen User',
       email: 'user@zenhabit.ai',
-      bio: 'Focusing on daily growth and mindfulness.',
-      mainGoal: 'Improve productivity',
-      joinedDate: new Date().toISOString()
+      bio: '',
+      mainGoal: '',
+      customGoalOptions: [],
+      hiddenStandardGoals: [],
+      joinedDate: new Date().toISOString(),
+      onboardingCompleted: false
     };
   },
 
@@ -299,6 +322,21 @@ export const StorageService = {
         await supabase.from('focus_sessions').upsert({ user_id: userId, ...session });
       } catch (e) {
         console.error("Supabase focus session save failed", e);
+      }
+    }
+  },
+
+  // Feedback Operations
+  saveFeedback: async (feedback: FeedbackSubmission) => {
+    const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.FEEDBACK) || '[]');
+    local.push(feedback);
+    localStorage.setItem(STORAGE_KEYS.FEEDBACK, JSON.stringify(local));
+    
+    if (supabase) {
+      try {
+        await supabase.from('feedback').insert(feedback);
+      } catch (e) {
+        console.error("Supabase feedback save failed", e);
       }
     }
   }

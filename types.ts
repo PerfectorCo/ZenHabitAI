@@ -3,9 +3,12 @@ export interface UserProfile {
   name: string;
   email: string;
   bio: string;
-  mainGoal: string;
+  mainGoal: string; 
+  customGoalOptions?: string[]; 
+  hiddenStandardGoals?: string[]; // IDs of standard goals the user has "deleted"
   avatarUrl?: string;
   joinedDate: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface Category {
@@ -55,6 +58,14 @@ export interface FocusSession {
   timestamp: string;
 }
 
+export interface FeedbackSubmission {
+  id: string;
+  userId: string;
+  type: 'bug' | 'suggestion' | 'other';
+  message: string;
+  timestamp: string;
+}
+
 export interface Recommendation {
   title: string;
   reason: string;
@@ -65,4 +76,4 @@ export interface Recommendation {
   };
 }
 
-export type ViewType = 'dashboard' | 'habits' | 'pomodoro' | 'analytics' | 'profile';
+export type ViewType = 'dashboard' | 'habits' | 'pomodoro' | 'analytics' | 'profile' | 'onboarding' | 'feedback';
