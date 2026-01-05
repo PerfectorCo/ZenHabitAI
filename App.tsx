@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [habits, setHabits] = React.useState<Habit[]>([]);
   const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [categories, setCategories] = React.useState<string[]>([]);
   const [taskTemplates, setTaskTemplates] = React.useState<TaskTemplate[]>([]);
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
   const [notifiedRef] = React.useState<{ [key: string]: string }>({});
@@ -96,11 +97,12 @@ const App: React.FC = () => {
       const userId = StorageService.getUserId();
       
       try {
-        const [fetchedProfile, fetchedHabits, fetchedTasks, fetchedSessions] = await Promise.all([
+        const [fetchedProfile, fetchedHabits, fetchedTasks, fetchedSessions, fetchedCategories] = await Promise.all([
           StorageService.getProfile(userId),
           StorageService.getHabits(userId),
           StorageService.getTasks(userId),
-          StorageService.getFocusSessions(userId)
+          StorageService.getFocusSessions(userId),
+          StorageService.getCategories(userId)
         ]);
 
         const localTemplates = localStorage.getItem('zenhabit_task_templates');
@@ -112,6 +114,7 @@ const App: React.FC = () => {
 
         setProfile(fetchedProfile);
         setHabits(fetchedHabits);
+        setCategories(fetchedCategories);
         setTaskTemplates(parsedTemplates);
         setFocusSessions(fetchedSessions);
         
@@ -152,9 +155,11 @@ const App: React.FC = () => {
     setHabits([]);
     setTasks([]);
     setFocusSessions([]);
+    setCategories([]);
   };
 
   const addHabit = async (title: string, category: string, reminderTime?: string) => {
+    const userId = StorageService.getUserId();
     const newHabit: Habit = {
       id: Date.now().toString(),
       title,
@@ -166,8 +171,16 @@ const App: React.FC = () => {
       timeSpentMinutes: 0,
       reminderTime
     };
+
+    // Update Local States
     setHabits(prev => [...prev, newHabit]);
-    await StorageService.saveHabit(StorageService.getUserId(), newHabit);
+    if (!categories.includes(category)) {
+      setCategories(prev => [...prev, category]);
+      await StorageService.saveCategory(userId, category);
+    }
+
+    // Persist Habit
+    await StorageService.saveHabit(userId, newHabit);
   };
 
   const toggleHabit = async (id: string) => {
@@ -350,6 +363,7 @@ const App: React.FC = () => {
       case 'habits': return <HabitManager 
         habits={habits} 
         tasks={tasks} 
+        categories={categories}
         templates={taskTemplates}
         onAddHabit={addHabit} 
         onToggleHabit={toggleHabit} 

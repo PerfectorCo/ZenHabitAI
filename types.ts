@@ -8,6 +8,12 @@ export interface UserProfile {
   joinedDate: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  userId: string;
+}
+
 export interface Habit {
   id: string;
   title: string;

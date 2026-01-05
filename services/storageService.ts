@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Habit, Task, UserProfile, FocusSession } from '../types';
+import { Habit, Task, UserProfile, FocusSession, Category } from '../types';
 
 // Retrieve keys from process.env
 const SUPABASE_URL = (process.env as any).SUPABASE_URL;
@@ -22,7 +22,8 @@ const STORAGE_KEYS = {
   HABITS: 'zenhabit_db_habits',
   TASKS: 'zenhabit_db_tasks',
   PROFILE: 'zenhabit_db_profile',
-  FOCUS_SESSIONS: 'zenhabit_db_focus_sessions'
+  FOCUS_SESSIONS: 'zenhabit_db_focus_sessions',
+  CATEGORIES: 'zenhabit_db_categories'
 };
 
 export const StorageService = {
@@ -41,6 +42,48 @@ export const StorageService = {
   clearAll: () => {
     localStorage.removeItem(STORAGE_KEYS.SESSION);
     localStorage.removeItem(STORAGE_KEYS.USER_ID);
+    localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
+    localStorage.removeItem(STORAGE_KEYS.HABITS);
+    localStorage.removeItem(STORAGE_KEYS.TASKS);
+    localStorage.removeItem(STORAGE_KEYS.PROFILE);
+    localStorage.removeItem(STORAGE_KEYS.FOCUS_SESSIONS);
+  },
+
+  // Category Operations
+  getCategories: async (userId: string): Promise<string[]> => {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('name')
+          .eq('user_id', userId);
+        if (!error && data) return data.map(c => c.name);
+      } catch (e) {
+        console.warn("Supabase categories fetch failed", e);
+      }
+    }
+    const local = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+    return local ? JSON.parse(local) : ['Health', 'Mindset', 'Work', 'Skills'];
+  },
+
+  saveCategory: async (userId: string, categoryName: string) => {
+    const current = await StorageService.getCategories(userId);
+    if (!current.includes(categoryName)) {
+      const updated = [...current, categoryName];
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
+      
+      if (supabase) {
+        try {
+          await supabase.from('categories').upsert({ 
+            id: `${userId}-${categoryName}`, 
+            user_id: userId, 
+            name: categoryName 
+          });
+        } catch (e) {
+          console.error("Supabase category save failed", e);
+        }
+      }
+    }
   },
 
   // Profile Operations

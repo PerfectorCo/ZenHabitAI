@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap } from 'lucide-react';
+import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle } from 'lucide-react';
 import { Habit, Task, TaskTemplate } from '../types';
 
 interface HabitManagerProps {
   habits: Habit[];
   tasks: Task[];
+  categories: string[];
   templates: TaskTemplate[];
   onAddHabit: (title: string, category: string, reminderTime?: string) => void;
   onToggleHabit: (id: string) => void;
@@ -19,6 +20,7 @@ interface HabitManagerProps {
 const HabitManager: React.FC<HabitManagerProps> = ({ 
   habits, 
   tasks, 
+  categories,
   templates,
   onAddHabit, 
   onToggleHabit, 
@@ -30,6 +32,8 @@ const HabitManager: React.FC<HabitManagerProps> = ({
 }) => {
   const [newHabitTitle, setNewHabitTitle] = React.useState('');
   const [category, setCategory] = React.useState('Health');
+  const [customCategory, setCustomCategory] = React.useState('');
+  const [isCustomCategory, setIsCustomCategory] = React.useState(false);
   const [reminderTime, setReminderTime] = React.useState('');
 
   const [newTaskTitle, setNewTaskTitle] = React.useState('');
@@ -37,12 +41,46 @@ const HabitManager: React.FC<HabitManagerProps> = ({
 
   const today = new Date().toISOString().split('T')[0];
 
-  const handleHabitAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newHabitTitle.trim()) {
-      onAddHabit(newHabitTitle, category, reminderTime || undefined);
+  // Sync category state with first available if 'Health' is gone or list changes
+  React.useEffect(() => {
+    if (!categories.includes(category) && categories.length > 0 && !isCustomCategory) {
+      setCategory(categories[0]);
+    }
+  }, [categories]);
+
+  const handleHabitAdd = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    const finalCategory = isCustomCategory ? customCategory.trim() : category;
+    
+    if (newHabitTitle.trim() && finalCategory) {
+      // Case 1: Title and Category provided -> Add Habit
+      onAddHabit(newHabitTitle, finalCategory, reminderTime || undefined);
+      
+      // Keep the category selected for the next addition
+      setCategory(finalCategory);
+      
+      // Reset other fields
       setNewHabitTitle('');
       setReminderTime('');
+      setCustomCategory('');
+      setIsCustomCategory(false);
+    } else if (isCustomCategory && finalCategory) {
+      // Case 2: Only custom category provided -> Just confirm it and switch back
+      setCategory(finalCategory);
+      setIsCustomCategory(false);
+      setCustomCategory('');
+    }
+  };
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val === 'CUSTOM_NEW') {
+      setIsCustomCategory(true);
+      setCustomCategory('');
+    } else {
+      setIsCustomCategory(false);
+      setCategory(val);
     }
   };
 
@@ -78,19 +116,63 @@ const HabitManager: React.FC<HabitManagerProps> = ({
               className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-slate-800"
             />
           </div>
-          <div className="w-40">
+          
+          <div className="w-56 relative">
             <label className="block text-[10px] uppercase font-bold text-slate-400 mb-2">Category</label>
-            <select 
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none appearance-none font-medium text-slate-800"
-            >
-              <option>Health</option>
-              <option>Mindset</option>
-              <option>Work</option>
-              <option>Skills</option>
-            </select>
+            {!isCustomCategory ? (
+              <div className="relative">
+                <select 
+                  value={category}
+                  onChange={handleCategoryChange}
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none appearance-none font-medium text-slate-800 pr-10"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  <option value="CUSTOM_NEW" className="text-indigo-600 font-bold font-black">+ Create New...</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <Plus size={14} />
+                </div>
+              </div>
+            ) : (
+              <div className="relative animate-in slide-in-from-right-2 duration-300">
+                <input
+                  type="text"
+                  autoFocus
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleHabitAdd();
+                    }
+                  }}
+                  placeholder="Enter name..."
+                  className="w-full px-5 py-4 rounded-2xl bg-indigo-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 pr-20"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <button 
+                    type="button"
+                    onClick={() => handleHabitAdd()}
+                    className="p-2 text-indigo-600 hover:bg-white rounded-xl transition-all"
+                    title="Save Category & Habit"
+                  >
+                    <CheckCircle size={18} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setIsCustomCategory(false)}
+                    className="p-2 text-indigo-300 hover:text-indigo-500"
+                    title="Cancel"
+                  >
+                    <Edit3 size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
           <div className="w-40">
             <label className="block text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1">
               <AlarmClock size={12} /> Reminder
@@ -104,7 +186,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
           </div>
           <button 
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-100"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 whitespace-nowrap"
           >
             <Plus size={20} /> Add Habit
           </button>
