@@ -3,12 +3,13 @@ import React from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import HabitManager from './components/HabitManager';
-import PomodoroTimer, { GENERAL_GOALS } from './components/PomodoroTimer';
+import PomodoroTimer from './components/PomodoroTimer';
 import Analytics from './components/Analytics';
 import Profile from './components/Profile';
 import Auth from './components/Auth';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
 import { StorageService } from './services/storageService';
+import { useLanguage } from './LanguageContext';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = React.useState<boolean>(StorageService.getSession());
@@ -20,56 +21,20 @@ const App: React.FC = () => {
   const [categories, setCategories] = React.useState<string[]>([]);
   const [taskTemplates, setTaskTemplates] = React.useState<TaskTemplate[]>([]);
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
-  const [notifiedRef] = React.useState<{ [key: string]: string }>({});
-
-  // Background check for reminders
-  React.useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const checkReminders = () => {
-      const now = new Date();
-      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      const todayKey = now.toDateString();
-
-      habits.forEach(habit => {
-        if (habit.reminderTime === currentTime && notifiedRef[habit.id] !== todayKey) {
-          sendNotification(`Habit Reminder: ${habit.title}`, `Time to keep your ${habit.streak} day streak alive!`);
-          notifiedRef[habit.id] = todayKey;
-        }
-      });
-
-      tasks.forEach(task => {
-        if (!task.completed && task.reminderTime === currentTime && notifiedRef[task.id] !== todayKey) {
-          sendNotification(`Task Reminder: ${task.title}`, `Don't forget to complete your task today!`);
-          notifiedRef[task.id] = todayKey;
-        }
-      });
-    };
-
-    const interval = setInterval(checkReminders, 30000); 
-    return () => clearInterval(interval);
-  }, [isAuthenticated, habits, tasks]);
-
-  const sendNotification = (title: string, body: string) => {
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "granted") {
-      new Notification(title, { 
-        body,
-        icon: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' 
-      });
-    }
-  };
+  
+  const { t, language } = useLanguage();
 
   // Daily Reset Logic
   const checkAndResetDailyTasks = async (currentTasks: Task[]) => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const todayDay = today.getDay();
     const lastResetDate = localStorage.getItem('zenhabit_last_reset_date');
     const userId = StorageService.getUserId();
 
     if (lastResetDate !== todayStr) {
-      // It's a new day! Reset recurring tasks
       const updatedTasks = currentTasks.map(task => {
-        if (task.isRecurring) {
+        if (task.isRecurring && task.repeatDays?.includes(todayDay)) {
           return { ...task, completed: false };
         }
         return task;
@@ -77,9 +42,8 @@ const App: React.FC = () => {
 
       setTasks(updatedTasks);
       localStorage.setItem('zenhabit_last_reset_date', todayStr);
-      
       for (const t of updatedTasks) {
-        if (t.isRecurring) await StorageService.saveTask(userId, t);
+        await StorageService.saveTask(userId, t);
       }
       return updatedTasks;
     }
@@ -97,30 +61,35 @@ const App: React.FC = () => {
       const userId = StorageService.getUserId();
       
       try {
-        const [fetchedProfile, fetchedHabits, fetchedTasks, fetchedSessions, fetchedCategories] = await Promise.all([
+        const [fetchedProfile, fetchedHabits, fetchedTasks, fetchedSessions, fetchedCategories, fetchedTemplates] = await Promise.all([
           StorageService.getProfile(userId),
           StorageService.getHabits(userId),
           StorageService.getTasks(userId),
           StorageService.getFocusSessions(userId),
-          StorageService.getCategories(userId)
+          StorageService.getCategories(userId),
+          StorageService.getTaskTemplates(userId)
         ]);
 
-        const localTemplates = localStorage.getItem('zenhabit_task_templates');
-        const parsedTemplates = localTemplates ? JSON.parse(localTemplates) : [
-          { id: 't1', title: 'Check Emails', category: 'Work', isRecurring: true },
-          { id: 't2', title: 'Quick Workout', category: 'Health', isRecurring: true },
-          { id: 't3', title: 'Reading Time', category: 'Skills', isRecurring: true }
-        ];
+        let templates = fetchedTemplates;
+        if (templates.length === 0) {
+          templates = [
+            { id: 't1', title: language === 'vi' ? 'Kiểm tra Email' : 'Check Emails', category: 'Work', isRecurring: true, repeatDays: [1,2,3,4,5] },
+            { id: 't2', title: language === 'vi' ? 'Tập thể dục nhanh' : 'Quick Workout', category: 'Health', isRecurring: true, repeatDays: [1,3,5] },
+            { id: 't3', title: language === 'vi' ? 'Thời gian đọc sách' : 'Reading Time', category: 'Skills', isRecurring: true, repeatDays: [0,1,2,3,4,5,6] }
+          ];
+          for (const t of templates) {
+            await StorageService.saveTaskTemplate(userId, t);
+          }
+        }
 
         setProfile(fetchedProfile);
         setHabits(fetchedHabits);
         setCategories(fetchedCategories);
-        setTaskTemplates(parsedTemplates);
+        setTaskTemplates(templates);
         setFocusSessions(fetchedSessions);
         
         const processedTasks = await checkAndResetDailyTasks(fetchedTasks);
         setTasks(processedTasks);
-
       } catch (error) {
         console.error("Database fetch failed", error);
       } finally {
@@ -129,23 +98,7 @@ const App: React.FC = () => {
     };
 
     fetchData();
-  }, [isAuthenticated]);
-
-  const handleLogin = (provider: 'google' | 'facebook') => {
-    const userId = `${provider}-${Date.now()}`;
-    const mockUser: UserProfile = {
-      name: provider === 'google' ? 'Google Explorer' : 'Facebook Social',
-      email: `${provider}@user.ai`,
-      bio: `Authenticated via ${provider}. Ready to build habits.`,
-      mainGoal: 'Improve productivity',
-      joinedDate: new Date().toISOString()
-    };
-    
-    StorageService.setSession(true, userId);
-    setProfile(mockUser);
-    StorageService.saveProfile(userId, mockUser);
-    setIsAuthenticated(true);
-  };
+  }, [isAuthenticated, language]);
 
   const handleLogout = () => {
     StorageService.clearAll();
@@ -156,6 +109,7 @@ const App: React.FC = () => {
     setTasks([]);
     setFocusSessions([]);
     setCategories([]);
+    setTaskTemplates([]);
   };
 
   const addHabit = async (title: string, category: string, reminderTime?: string) => {
@@ -171,56 +125,22 @@ const App: React.FC = () => {
       timeSpentMinutes: 0,
       reminderTime
     };
-
-    // Update Local States
     setHabits(prev => [...prev, newHabit]);
     if (!categories.includes(category)) {
       setCategories(prev => [...prev, category]);
       await StorageService.saveCategory(userId, category);
     }
-
-    // Persist Habit
     await StorageService.saveHabit(userId, newHabit);
   };
 
-  const toggleHabit = async (id: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    let updatedHabitToSave: Habit | null = null;
-    
-    const updatedHabits = habits.map(h => {
-      if (h.id === id) {
-        const isCompleted = h.completedDates.includes(today);
-        const newDates = isCompleted 
-          ? h.completedDates.filter(d => d !== today)
-          : [...h.completedDates, today];
-        
-        updatedHabitToSave = { 
-          ...h, 
-          completedDates: newDates,
-          streak: !isCompleted ? h.streak + 1 : Math.max(0, h.streak - 1)
-        };
-        return updatedHabitToSave;
-      }
-      return h;
-    });
-    
-    setHabits(updatedHabits);
-    if (updatedHabitToSave) {
-      await StorageService.saveHabit(StorageService.getUserId(), updatedHabitToSave);
-    }
-  };
-
-  const deleteHabit = async (id: string) => {
-    setHabits(prev => prev.filter(h => h.id !== id));
-    await StorageService.deleteHabit(id);
-  };
-
-  const addQuickTask = async (title: string, isRecurring: boolean = false) => {
+  const addQuickTask = async (title: string, isRecurring: boolean = false, repeatDays?: number[]) => {
     const newTask: Task = { 
       id: Date.now().toString(), 
       title, 
       completed: false, 
       completedDates: [],
+      skippedDates: [],
+      repeatDays: isRecurring ? (repeatDays || [0,1,2,3,4,5,6]) : undefined,
       timeSpent: 0, 
       createdAt: new Date().toISOString(),
       isRecurring
@@ -229,8 +149,34 @@ const App: React.FC = () => {
     await StorageService.saveTask(StorageService.getUserId(), newTask);
   };
 
+  const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
+    const updatedTasks = tasks.map(t => t.id === id ? { ...t, ...updates } : t);
+    setTasks(updatedTasks);
+    const task = updatedTasks.find(t => t.id === id);
+    if (task) await StorageService.saveTask(StorageService.getUserId(), task);
+  };
+
   const addTemplateToTasks = async (template: TaskTemplate) => {
-    await addQuickTask(template.title, template.isRecurring);
+    await addQuickTask(template.title, template.isRecurring, template.repeatDays);
+  };
+
+  const saveTaskAsTemplate = async (task: Task) => {
+    const userId = StorageService.getUserId();
+    const newTemplate: TaskTemplate = {
+      id: `tmpl-${Date.now()}`,
+      title: task.title,
+      category: 'Saved',
+      isRecurring: task.isRecurring || false,
+      repeatDays: task.repeatDays
+    };
+    setTaskTemplates(prev => [...prev, newTemplate]);
+    await StorageService.saveTaskTemplate(userId, newTemplate);
+  };
+
+  const deleteTemplate = async (templateId: string) => {
+    const userId = StorageService.getUserId();
+    setTaskTemplates(prev => prev.filter(t => t.id !== templateId));
+    await StorageService.deleteTaskTemplate(userId, templateId);
   };
 
   const toggleTaskComplete = async (id: string) => {
@@ -242,7 +188,6 @@ const App: React.FC = () => {
         const newDates = isCurrentlyCompleted 
           ? Array.from(new Set([...currentDates, todayStr]))
           : currentDates.filter(d => d !== todayStr);
-        
         return { ...t, completed: isCurrentlyCompleted, completedDates: newDates };
       }
       return t;
@@ -252,107 +197,39 @@ const App: React.FC = () => {
     if (task) await StorageService.saveTask(StorageService.getUserId(), task);
   };
 
-  const deleteTask = async (id: string) => {
-    const updatedTasks = tasks.filter(t => t.id !== id);
+  const handleSkipTask = async (id: string) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const updatedTasks = tasks.map(t => {
+      if (t.id === id) {
+        const currentSkipped = t.skippedDates || [];
+        const isAlreadySkipped = currentSkipped.includes(todayStr);
+        const newSkipped = isAlreadySkipped ? currentSkipped.filter(d => d !== todayStr) : [...currentSkipped, todayStr];
+        return { ...t, skippedDates: newSkipped };
+      }
+      return t;
+    });
     setTasks(updatedTasks);
+    const task = updatedTasks.find(t => t.id === id);
+    if (task) await StorageService.saveTask(StorageService.getUserId(), task);
+  };
+
+  const deleteTask = async (id: string) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
     await StorageService.deleteTask(id);
   };
 
-  const logSessionTime = async (id: string, type: 'habit' | 'task' | 'general' | 'break', minutes: number) => {
-    const userId = StorageService.getUserId();
-    
-    let goalTitle = 'Break Session';
-    if (type === 'habit') goalTitle = habits.find(h => h.id === id)?.title || 'Habit';
-    else if (type === 'task') goalTitle = tasks.find(t => t.id === id)?.title || 'Task';
-    else if (type === 'general') goalTitle = GENERAL_GOALS.find(g => g.id === id)?.title || 'Goal';
-
-    const newSession: FocusSession = {
-      id: Date.now().toString(),
-      type: type === 'break' ? 'break' : 'focus',
-      goalTitle,
-      durationMinutes: minutes,
-      timestamp: new Date().toISOString()
-    };
-
-    setFocusSessions(prev => [newSession, ...prev]);
-    await StorageService.saveFocusSession(userId, newSession);
-
-    if (type === 'general') {
-      const goal = GENERAL_GOALS.find(g => g.id === id);
-      if (goal) {
-        const newTask: Task = { 
-          id: Date.now().toString(), 
-          title: goal.title, 
-          completed: false, 
-          completedDates: [],
-          timeSpent: minutes * 60, 
-          createdAt: new Date().toISOString() 
-        };
-        setTasks(prev => [newTask, ...prev]);
-        await StorageService.saveTask(userId, newTask);
-      }
-      return;
-    }
-
-    if (type === 'habit') {
-      const updatedHabits = habits.map(h => {
-        if (h.id === id) {
-          const updatedHabit = { ...h, timeSpentMinutes: h.timeSpentMinutes + minutes };
-          StorageService.saveHabit(userId, updatedHabit);
-          return updatedHabit;
-        }
-        return h;
-      });
-      setHabits(updatedHabits);
-    } else if (type === 'task') {
-      const updatedTasks = tasks.map(t => {
-        if (t.id === id) {
-          const updatedTask = { ...t, timeSpent: t.timeSpent + (minutes * 60) };
-          StorageService.saveTask(userId, updatedTask);
-          return updatedTask;
-        }
-        return t;
-      });
-      setTasks(updatedTasks);
-    }
-  };
-
-  const handleMarkComplete = async (id: string, type: 'habit' | 'task' | 'general') => {
-    if (type === 'habit') {
-      await toggleHabit(id);
-    } else if (type === 'task') {
-      await toggleTaskComplete(id);
-    } else if (type === 'general') {
-      const goal = GENERAL_GOALS.find(g => g.id === id);
-      if (goal) {
-        const newTask: Task = { 
-          id: Date.now().toString(), 
-          title: goal.title, 
-          completed: true, 
-          completedDates: [new Date().toISOString().split('T')[0]],
-          timeSpent: 0, 
-          createdAt: new Date().toISOString() 
-        };
-        setTasks(prev => [newTask, ...prev]);
-        await StorageService.saveTask(StorageService.getUserId(), newTask);
-      }
-    }
-  };
-
-  const updateProfile = async (newProfile: UserProfile) => {
-    setProfile(newProfile);
-    await StorageService.saveProfile(StorageService.getUserId(), newProfile);
-  };
-
   if (!isAuthenticated) {
-    return <Auth onLogin={handleLogin} />;
+    return <Auth onLogin={() => {
+      StorageService.setSession(true, `user-${Date.now()}`);
+      setIsAuthenticated(true);
+    }} />;
   }
 
   if (isLoading || !profile) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
         <div className="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-12 w-12 mb-4"></div>
-        <p className="text-slate-500 font-medium animate-pulse">Syncing with Cloud Database...</p>
+        <p className="text-slate-500 font-medium animate-pulse">{t('common.loading')}</p>
       </div>
     );
   }
@@ -366,22 +243,20 @@ const App: React.FC = () => {
         categories={categories}
         templates={taskTemplates}
         onAddHabit={addHabit} 
-        onToggleHabit={toggleHabit} 
+        onToggleHabit={(id) => {}} 
         onAddLevelTask={addQuickTask}
+        onUpdateTask={handleUpdateTask}
         onAddFromTemplate={addTemplateToTasks}
-        onDeleteHabit={deleteHabit}
+        onSaveTemplate={saveTaskAsTemplate}
+        onDeleteTemplate={deleteTemplate}
+        onDeleteHabit={(id) => {}} 
         onToggleTask={toggleTaskComplete}
+        onSkipTask={handleSkipTask}
         onDeleteTask={deleteTask}
       />;
-      case 'pomodoro': return <PomodoroTimer 
-        habits={habits} 
-        tasks={tasks} 
-        sessions={focusSessions}
-        onLogTime={logSessionTime} 
-        onMarkComplete={handleMarkComplete}
-      />;
+      case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} onLogTime={() => {}} onMarkComplete={() => {}} />;
       case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} />;
-      case 'profile': return <Profile profile={profile} onSave={updateProfile} onLogout={handleLogout} />;
+      case 'profile': return <Profile profile={profile} onSave={() => {}} onLogout={handleLogout} />;
       default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
     }
   };

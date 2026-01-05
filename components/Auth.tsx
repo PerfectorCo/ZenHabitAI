@@ -65,13 +65,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               Continue with Facebook
             </button>
           </div>
-
-          <div className="mt-10 flex items-center justify-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-              Secure Cloud Sync Active
-            </span>
-          </div>
         </div>
 
         <p className="text-center mt-8 text-slate-500 text-sm">

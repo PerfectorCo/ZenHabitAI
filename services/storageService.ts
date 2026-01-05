@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Habit, Task, UserProfile, FocusSession, Category } from '../types';
+import { Habit, Task, UserProfile, FocusSession, Category, TaskTemplate } from '../types';
 
 // Retrieve keys from process.env
 const SUPABASE_URL = (process.env as any).SUPABASE_URL;
@@ -21,6 +21,7 @@ const STORAGE_KEYS = {
   USER_ID: 'zenhabit_db_user_id',
   HABITS: 'zenhabit_db_habits',
   TASKS: 'zenhabit_db_tasks',
+  TEMPLATES: 'zenhabit_db_templates',
   PROFILE: 'zenhabit_db_profile',
   FOCUS_SESSIONS: 'zenhabit_db_focus_sessions',
   CATEGORIES: 'zenhabit_db_categories'
@@ -45,6 +46,7 @@ export const StorageService = {
     localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
     localStorage.removeItem(STORAGE_KEYS.HABITS);
     localStorage.removeItem(STORAGE_KEYS.TASKS);
+    localStorage.removeItem(STORAGE_KEYS.TEMPLATES);
     localStorage.removeItem(STORAGE_KEYS.PROFILE);
     localStorage.removeItem(STORAGE_KEYS.FOCUS_SESSIONS);
   },
@@ -218,6 +220,53 @@ export const StorageService = {
         await supabase.from('tasks').delete().eq('id', taskId);
       } catch (e) {
         console.error("Supabase task deletion failed", e);
+      }
+    }
+  },
+
+  // Template (Preset) Operations
+  getTaskTemplates: async (userId: string): Promise<TaskTemplate[]> => {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('task_templates')
+          .select('*')
+          .eq('user_id', userId);
+        if (!error && data) return data;
+      } catch (e) {
+        console.warn("Supabase templates fetch failed", e);
+      }
+    }
+    const local = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
+    return local ? JSON.parse(local) : [];
+  },
+
+  saveTaskTemplate: async (userId: string, template: TaskTemplate) => {
+    const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEMPLATES) || '[]');
+    const index = local.findIndex((t: TaskTemplate) => t.id === template.id);
+    if (index > -1) local[index] = template;
+    else local.push(template);
+    
+    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(local));
+
+    if (supabase) {
+      try {
+        await supabase.from('task_templates').upsert({ user_id: userId, ...template });
+      } catch (e) {
+        console.error("Supabase template save failed", e);
+      }
+    }
+  },
+
+  deleteTaskTemplate: async (userId: string, templateId: string) => {
+    const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEMPLATES) || '[]');
+    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(local.filter((t: TaskTemplate) => t.id !== templateId)));
+
+    if (supabase) {
+      try {
+        await supabase.from('task_templates').delete().eq('id', templateId).eq('user_id', userId);
+      } catch (e) {
+        console.error("Supabase template deletion failed", e);
       }
     }
   },

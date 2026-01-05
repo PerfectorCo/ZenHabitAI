@@ -4,6 +4,7 @@ import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check } from 'lucide-
 import { Habit, Task, Recommendation, UserProfile } from '../types';
 import { getAIRecommendations } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useLanguage } from '../LanguageContext';
 
 interface DashboardProps {
   habits: Habit[];
@@ -16,18 +17,17 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
   const [recommendations, setRecommendations] = React.useState<Recommendation[]>([]);
   const [loadingAI, setLoadingAI] = React.useState(true);
   const [addedIds, setAddedIds] = React.useState<number[]>([]);
+  const { t, language } = useLanguage();
 
-  // Fixed: Use empty dependency array so recommendations only fetch once on mount.
-  // This prevents the UI from flickering/reloading when a suggested habit is added to the list.
   React.useEffect(() => {
     const fetchRecs = async () => {
       setLoadingAI(true);
-      const recs = await getAIRecommendations(habits, profile);
+      const recs = await getAIRecommendations(habits, profile, language);
       setRecommendations(recs);
       setLoadingAI(false);
     };
     fetchRecs();
-  }, []); 
+  }, [language]); 
 
   const handleAddSuggestedHabit = (rec: Recommendation, index: number) => {
     if (rec.suggestedHabit) {
@@ -49,17 +49,17 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-          Welcome back, {profile.name.split(' ')[0]}!
+          {t('dashboard.welcome')}, {profile.name.split(' ')[0]}!
         </h1>
-        <p className="text-slate-500">Your focus for today: <span className="text-indigo-600 font-medium">{profile.mainGoal}</span></p>
+        <p className="text-slate-500">{t('dashboard.focusForToday')}: <span className="text-indigo-600 font-medium">{profile.mainGoal}</span></p>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
           <div className="relative z-10">
-            <h3 className="text-indigo-100 font-medium mb-1">Today's Progress</h3>
+            <h3 className="text-indigo-100 font-medium mb-1">{t('dashboard.progress')}</h3>
             <div className="text-4xl font-bold mb-4">{completedToday}/{habits.length}</div>
-            <p className="text-sm text-indigo-200">Keep it up! You're almost at your daily goal.</p>
+            <p className="text-sm text-indigo-200">{t('dashboard.progressSub')}</p>
           </div>
           <CheckCircle2 className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10" />
         </div>
@@ -69,9 +69,9 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
             <Flame size={24} />
           </div>
           <div>
-            <h3 className="text-slate-500 text-sm font-medium">Longest Streak</h3>
+            <h3 className="text-slate-500 text-sm font-medium">{t('dashboard.longestStreak')}</h3>
             <div className="text-2xl font-bold text-slate-900">
-              {habits.length > 0 ? Math.max(...habits.map(h => h.streak), 0) : 0} Days
+              {habits.length > 0 ? Math.max(...habits.map(h => h.streak), 0) : 0} {t('common.days')}
             </div>
           </div>
         </div>
@@ -81,7 +81,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
             <Clock size={24} />
           </div>
           <div>
-            <h3 className="text-slate-500 text-sm font-medium">Total Actions</h3>
+            <h3 className="text-slate-500 text-sm font-medium">{t('dashboard.totalActions')}</h3>
             <div className="text-2xl font-bold text-slate-900">
               {habits.reduce((acc, h) => acc + h.completedDates.length, 0)}
             </div>
@@ -94,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <Sparkles className="text-indigo-500" size={20} />
-              AI Recommendations
+              {t('dashboard.aiRecs')}
             </h2>
           </div>
           <div className="space-y-4">
@@ -120,18 +120,18 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
                   {rec.suggestedHabit && (
                     <div className="flex items-center justify-between pt-3 border-t border-slate-50">
                       <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
-                        New Habit Suggestion
+                        {t('dashboard.aiRecs')}
                       </div>
                       {addedIds.includes(i) ? (
                         <span className="flex items-center gap-1 text-xs font-bold text-emerald-500">
-                          <Check size={14} /> Added to list
+                          <Check size={14} /> {t('dashboard.addedToList')}
                         </span>
                       ) : (
                         <button 
                           onClick={() => handleAddSuggestedHabit(rec, i)}
                           className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
                         >
-                          <PlusCircle size={14} /> Add to my list
+                          <PlusCircle size={14} /> {t('dashboard.addToList')}
                         </button>
                       )}
                     </div>
@@ -144,7 +144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
 
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900">Habit Insights</h2>
+            <h2 className="text-xl font-bold text-slate-900">{t('dashboard.aiInsights')}</h2>
           </div>
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-[320px]">
             <ResponsiveContainer width="100%" height="100%">

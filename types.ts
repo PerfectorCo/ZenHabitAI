@@ -31,10 +31,12 @@ export interface Task {
   title: string;
   completed: boolean;
   completedDates?: string[]; // Track when task was completed (useful for recurring tasks)
+  skippedDates?: string[]; // Track when task was skipped for the day
+  repeatDays?: number[]; // [0,1,2,3,4,5,6] where 0 is Sunday
   timeSpent: number; // in seconds
   createdAt: string;
   reminderTime?: string; // HH:mm format
-  isRecurring?: boolean; // If true, resets daily
+  isRecurring?: boolean; // If true, resets on scheduled days
 }
 
 export interface TaskTemplate {
@@ -42,6 +44,7 @@ export interface TaskTemplate {
   title: string;
   category: string;
   isRecurring: boolean;
+  repeatDays?: number[];
 }
 
 export interface FocusSession {

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle } from 'lucide-react';
+import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle, FastForward, Undo2, Star, X, Pencil, Save } from 'lucide-react';
 import { Habit, Task, TaskTemplate } from '../types';
 
 interface HabitManagerProps {
@@ -10,12 +10,18 @@ interface HabitManagerProps {
   templates: TaskTemplate[];
   onAddHabit: (title: string, category: string, reminderTime?: string) => void;
   onToggleHabit: (id: string) => void;
-  onAddLevelTask: (title: string, isRecurring: boolean) => void;
+  onAddLevelTask: (title: string, isRecurring: boolean, repeatDays?: number[]) => void;
+  onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onAddFromTemplate: (template: TaskTemplate) => void;
+  onSaveTemplate: (task: Task) => void;
+  onDeleteTemplate: (id: string) => void;
   onDeleteHabit: (id: string) => void;
   onToggleTask: (id: string) => void;
+  onSkipTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
 }
+
+const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const HabitManager: React.FC<HabitManagerProps> = ({ 
   habits, 
@@ -25,9 +31,13 @@ const HabitManager: React.FC<HabitManagerProps> = ({
   onAddHabit, 
   onToggleHabit, 
   onAddLevelTask,
+  onUpdateTask,
   onAddFromTemplate,
+  onSaveTemplate,
+  onDeleteTemplate,
   onDeleteHabit,
   onToggleTask,
+  onSkipTask,
   onDeleteTask
 }) => {
   const [newHabitTitle, setNewHabitTitle] = React.useState('');
@@ -38,69 +48,80 @@ const HabitManager: React.FC<HabitManagerProps> = ({
 
   const [newTaskTitle, setNewTaskTitle] = React.useState('');
   const [isTaskRecurring, setIsTaskRecurring] = React.useState(false);
+  const [repeatDays, setRepeatDays] = React.useState<number[]>([0,1,2,3,4,5,6]);
 
-  const today = new Date().toISOString().split('T')[0];
+  // Editing state
+  const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editRepeatDays, setEditRepeatDays] = React.useState<number[]>([]);
+  const [editIsRecurring, setEditIsRecurring] = React.useState(false);
 
-  // Sync category state with first available if 'Health' is gone or list changes
-  React.useEffect(() => {
-    if (!categories.includes(category) && categories.length > 0 && !isCustomCategory) {
-      setCategory(categories[0]);
-    }
-  }, [categories]);
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const todayDay = today.getDay();
 
   const handleHabitAdd = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
     const finalCategory = isCustomCategory ? customCategory.trim() : category;
-    
     if (newHabitTitle.trim() && finalCategory) {
-      // Case 1: Title and Category provided -> Add Habit
       onAddHabit(newHabitTitle, finalCategory, reminderTime || undefined);
-      
-      // Keep the category selected for the next addition
-      setCategory(finalCategory);
-      
-      // Reset other fields
       setNewHabitTitle('');
       setReminderTime('');
-      setCustomCategory('');
       setIsCustomCategory(false);
-    } else if (isCustomCategory && finalCategory) {
-      // Case 2: Only custom category provided -> Just confirm it and switch back
-      setCategory(finalCategory);
-      setIsCustomCategory(false);
-      setCustomCategory('');
-    }
-  };
-
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (val === 'CUSTOM_NEW') {
-      setIsCustomCategory(true);
-      setCustomCategory('');
-    } else {
-      setIsCustomCategory(false);
-      setCategory(val);
     }
   };
 
   const handleTaskAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTaskTitle.trim()) {
-      onAddLevelTask(newTaskTitle, isTaskRecurring);
+      onAddLevelTask(newTaskTitle, isTaskRecurring, isTaskRecurring ? repeatDays : undefined);
       setNewTaskTitle('');
       setIsTaskRecurring(false);
+      setRepeatDays([0,1,2,3,4,5,6]);
     }
   };
+
+  const toggleRepeatDay = (day: number) => {
+    setRepeatDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const handleStartEdit = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditTitle(task.title);
+    setEditIsRecurring(!!task.isRecurring);
+    setEditRepeatDays(task.repeatDays || [0,1,2,3,4,5,6]);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingTaskId) {
+      onUpdateTask(editingTaskId, {
+        title: editTitle,
+        isRecurring: editIsRecurring,
+        repeatDays: editIsRecurring ? editRepeatDays : undefined
+      });
+      setEditingTaskId(null);
+    }
+  };
+
+  const toggleEditRepeatDay = (day: number) => {
+    setEditRepeatDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const pendingTasks = tasks.filter(t => 
+    !t.completed && !t.skippedDates?.includes(todayStr) && (!t.isRecurring || t.repeatDays?.includes(todayDay))
+  );
+
+  const completedTasks = tasks.filter(t => t.completed);
+  const skippedTasks = tasks.filter(t => !t.completed && t.skippedDates?.includes(todayStr));
 
   return (
     <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
       <header>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Structure Your Day</h1>
-        <p className="text-slate-500">Combine long-term habits with daily recurring tasks.</p>
+        <p className="text-slate-500">Syncing goals and tasks across all your devices.</p>
       </header>
 
-      {/* Habit Creation Section */}
+      {/* Habit Creation */}
       <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
            <Zap className="text-indigo-500" size={24} /> New Habit Goal
@@ -116,238 +137,169 @@ const HabitManager: React.FC<HabitManagerProps> = ({
               className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-slate-800"
             />
           </div>
-          
-          <div className="w-56 relative">
-            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-2">Category</label>
-            {!isCustomCategory ? (
-              <div className="relative">
-                <select 
-                  value={category}
-                  onChange={handleCategoryChange}
-                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none appearance-none font-medium text-slate-800 pr-10"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                  <option value="CUSTOM_NEW" className="text-indigo-600 font-bold font-black">+ Create New...</option>
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                  <Plus size={14} />
-                </div>
-              </div>
-            ) : (
-              <div className="relative animate-in slide-in-from-right-2 duration-300">
-                <input
-                  type="text"
-                  autoFocus
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleHabitAdd();
-                    }
-                  }}
-                  placeholder="Enter name..."
-                  className="w-full px-5 py-4 rounded-2xl bg-indigo-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-indigo-900 pr-20"
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <button 
-                    type="button"
-                    onClick={() => handleHabitAdd()}
-                    className="p-2 text-indigo-600 hover:bg-white rounded-xl transition-all"
-                    title="Save Category & Habit"
-                  >
-                    <CheckCircle size={18} />
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setIsCustomCategory(false)}
-                    className="p-2 text-indigo-300 hover:text-indigo-500"
-                    title="Cancel"
-                  >
-                    <Edit3 size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="w-40">
-            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-2 flex items-center gap-1">
-              <AlarmClock size={12} /> Reminder
-            </label>
-            <input
-              type="time"
-              value={reminderTime}
-              onChange={(e) => setReminderTime(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-            />
-          </div>
-          <button 
-            type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 whitespace-nowrap"
-          >
-            <Plus size={20} /> Add Habit
-          </button>
+          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-100"><Plus size={20} /> Add Habit</button>
         </form>
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* Habits List */}
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-            <Target className="text-indigo-500" size={24} />
-            Daily Streaks
-          </h2>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3"><Target className="text-indigo-500" size={24} /> Daily Streaks</h2>
           <div className="space-y-4">
-            {habits.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-[2rem] border border-dashed border-slate-200 text-slate-400">
-                <Target size={48} className="mx-auto mb-4 opacity-10" />
-                <p className="font-medium">No habits yet. Every journey begins with one step.</p>
+            {habits.map((habit) => (
+              <div key={habit.id} className="group flex items-center gap-5 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                <button onClick={() => onToggleHabit(habit.id)} className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 ${habit.completedDates.includes(todayStr) ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'border-slate-100 text-transparent bg-slate-50'}`}><Check size={20} /></button>
+                <div className="flex-1">
+                  <h4 className={`font-bold text-base ${habit.completedDates.includes(todayStr) ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{habit.title}</h4>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{habit.category}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-black text-indigo-600">{habit.streak}</div>
+                  <div className="text-[9px] text-slate-400 uppercase font-black">Days</div>
+                </div>
               </div>
-            ) : (
-              habits.map((habit) => {
-                const isCompletedToday = habit.completedDates.includes(today);
-                return (
-                  <div key={habit.id} className="group flex items-center gap-5 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                    <button 
-                      onClick={() => onToggleHabit(habit.id)}
-                      className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all ${
-                        isCompletedToday 
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                          : 'border-slate-100 text-transparent hover:border-indigo-200 hover:text-indigo-100 bg-slate-50'
-                      }`}
-                    >
-                      <Check size={20} />
-                    </button>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`font-bold text-base ${isCompletedToday ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                          {habit.title}
-                        </h4>
-                        {habit.reminderTime && (
-                          <div className="flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-500 px-2 py-0.5 rounded-full font-black uppercase">
-                            <BellRing size={10} /> {habit.reminderTime}
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{habit.category}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <div className="text-lg font-black text-indigo-600">{habit.streak}</div>
-                        <div className="text-[9px] text-slate-400 uppercase font-black tracking-tighter">Days</div>
-                      </div>
-                      <button 
-                        onClick={() => onDeleteHabit(habit.id)}
-                        className="p-2 text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+            ))}
           </div>
         </div>
 
         {/* Tasks Section */}
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-            <Calendar className="text-violet-500" size={24} />
-            Tasks & Chores
-          </h2>
-
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3"><Calendar className="text-violet-500" size={24} /> Tasks & Chores</h2>
           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl shadow-slate-200">
-             {/* Task Library / Templates */}
+             
+             {/* Presets Library */}
              <div className="mb-8">
                 <div className="flex items-center gap-2 mb-4 text-white/60">
-                   <Library size={16} />
-                   <h3 className="text-xs font-black uppercase tracking-[0.2em]">Templates Library</h3>
+                  <Library size={16} />
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em]">Presets Library</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
                    {templates.map(tmpl => (
-                      <button 
-                        key={tmpl.id}
-                        onClick={() => onAddFromTemplate(tmpl)}
-                        className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 group"
-                      >
-                        <Plus size={12} className="group-hover:scale-125 transition-transform" />
-                        {tmpl.title}
-                        {tmpl.isRecurring && <Repeat size={10} className="text-indigo-400" />}
-                      </button>
+                      <div key={tmpl.id} className="flex items-center bg-white/10 hover:bg-white/20 rounded-xl overflow-hidden group transition-all">
+                        <button 
+                          onClick={() => onAddFromTemplate(tmpl)}
+                          className="pl-4 pr-2 py-2 text-xs font-bold flex items-center gap-2"
+                        >
+                          <Plus size={12} className="group-hover:scale-125 transition-transform" />
+                          {tmpl.title}
+                          {tmpl.isRecurring && <Repeat size={10} className="text-indigo-400" />}
+                        </button>
+                        <button 
+                          onClick={() => onDeleteTemplate(tmpl.id)}
+                          className="pr-2 py-2 text-white/20 hover:text-red-400 transition-colors"
+                          title="Remove from presets"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                    ))}
                 </div>
              </div>
 
-             <form onSubmit={handleTaskAdd} className="flex gap-3 mb-8">
-                <div className="flex-1 relative">
-                  <input 
-                    type="text" 
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="Quick action today..." 
-                    className="w-full bg-white/10 border-none text-white rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-400 font-medium placeholder:text-white/20"
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                    <button 
-                      type="button"
-                      onClick={() => setIsTaskRecurring(!isTaskRecurring)}
-                      className={`p-2 rounded-lg transition-all ${isTaskRecurring ? 'bg-indigo-500 text-white' : 'text-white/20 hover:text-white/40'}`}
-                      title="Repeat Daily"
-                    >
-                      <Repeat size={18} />
-                    </button>
+             <form onSubmit={handleTaskAdd} className="space-y-4 mb-8">
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Quick action..." className="w-full bg-white/10 border-none text-white rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-400 font-medium placeholder:text-white/20" />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <button type="button" onClick={() => setIsTaskRecurring(!isTaskRecurring)} className={`p-2 rounded-lg transition-all ${isTaskRecurring ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/50' : 'text-white/20 hover:text-white/40'}`} title="Set as recurring task"><Repeat size={18} /></button>
+                    </div>
                   </div>
+                  <button type="submit" className="bg-white text-slate-900 px-5 rounded-2xl hover:bg-indigo-50 transition-colors"><Plus size={24} /></button>
                 </div>
-                <button type="submit" className="bg-white text-slate-900 px-5 rounded-2xl hover:bg-indigo-50 transition-colors">
-                  <Plus size={24} />
-                </button>
+
+                {isTaskRecurring && (
+                  <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 duration-300">
+                    <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">Repeat on:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {DAYS_OF_WEEK.map((day, idx) => (
+                        <button key={idx} type="button" onClick={() => toggleRepeatDay(idx)} className={`min-w-[42px] h-9 px-2 rounded-lg text-[10px] font-black transition-all ${repeatDays.includes(idx) ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>{day}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
              </form>
 
-             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? (
-                  <p className="text-center py-10 text-white/20 text-sm font-medium italic">Empty for now. Use the templates above!</p>
-                ) : (
-                  <>
-                    {tasks.filter(t => !t.completed).map(task => (
-                      <div key={task.id} className="flex items-center gap-4 p-4 hover:bg-white/5 rounded-[1.5rem] transition-colors group">
-                        <button onClick={() => onToggleTask(task.id)} className="text-white/20 hover:text-indigo-400 transition-colors">
-                          <Circle size={22} />
-                        </button>
-                        <div className="flex-1">
-                           <span className="text-sm font-bold block">{task.title}</span>
-                           {task.isRecurring && (
-                             <span className="text-[9px] text-indigo-400 font-black uppercase flex items-center gap-1 mt-0.5">
-                               <Repeat size={8} /> Daily Reset
-                             </span>
-                           )}
+             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {pendingTasks.map(task => (
+                  <div key={task.id} className={`flex flex-col p-4 rounded-[1.5rem] transition-all group ${editingTaskId === task.id ? 'bg-white/10 ring-1 ring-indigo-400/50' : 'hover:bg-white/5'}`}>
+                    <div className="flex items-center gap-4">
+                      {editingTaskId !== task.id ? (
+                        <>
+                          <button onClick={() => onToggleTask(task.id)} className="text-white/20 hover:text-indigo-400 transition-colors"><Circle size={22} /></button>
+                          <div className="flex-1">
+                             <span className="text-sm font-bold block">{task.title}</span>
+                             {task.isRecurring && (
+                               <span className="text-[9px] text-indigo-400 font-black uppercase flex items-center gap-1 mt-0.5">
+                                 <Repeat size={8} /> {task.repeatDays?.length === 7 ? 'Every Day' : task.repeatDays?.map(d => DAYS_OF_WEEK[d]).join(', ')}
+                               </span>
+                             )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                             <button onClick={() => handleStartEdit(task)} className="p-2 text-white/0 group-hover:text-white/20 hover:text-indigo-400" title="Edit task"><Pencil size={16} /></button>
+                             <button onClick={() => onSaveTemplate(task)} className="p-2 text-white/0 group-hover:text-white/20 hover:text-yellow-400" title="Save as template"><Star size={16} /></button>
+                             <button onClick={() => onSkipTask(task.id)} className="p-2 text-white/0 group-hover:text-white/20 hover:text-orange-400" title="Skip for today"><FastForward size={18} /></button>
+                             <button onClick={() => onDeleteTask(task.id)} className="p-2 text-white/0 group-hover:text-white/20 hover:text-red-400"><Trash2 size={16} /></button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-1 space-y-4 animate-in fade-in duration-300">
+                          <div className="flex gap-3">
+                            <input 
+                              type="text" 
+                              value={editTitle} 
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              autoFocus
+                              className="flex-1 bg-white/5 border-none text-white rounded-xl px-4 py-2 outline-none focus:ring-1 focus:ring-indigo-400 text-sm font-bold"
+                            />
+                            <button onClick={() => setEditIsRecurring(!editIsRecurring)} className={`p-2 rounded-xl transition-all ${editIsRecurring ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-white/20 hover:text-white/40'}`}><Repeat size={18} /></button>
+                            <button onClick={handleSaveEdit} className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 rounded-xl transition-colors"><Save size={18} /></button>
+                            <button onClick={() => setEditingTaskId(null)} className="text-white/20 hover:text-white/40"><X size={18} /></button>
+                          </div>
+                          {editIsRecurring && (
+                            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-white/5">
+                              {DAYS_OF_WEEK.map((day, idx) => (
+                                <button 
+                                  key={idx} 
+                                  type="button" 
+                                  onClick={() => toggleEditRepeatDay(idx)} 
+                                  className={`min-w-[36px] h-8 px-1.5 rounded-lg text-[9px] font-black transition-all ${editRepeatDays.includes(idx) ? 'bg-indigo-500 text-white' : 'bg-white/5 text-white/30'}`}
+                                >
+                                  {day}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <button onClick={() => onDeleteTask(task.id)} className="text-white/0 group-hover:text-white/20 hover:text-red-400 transition-all">
-                           <Trash2 size={16} />
-                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {skippedTasks.length > 0 && (
+                  <div className="pt-6 border-t border-white/10 mt-6">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-orange-400/60">Postponed for Today</p>
+                    {skippedTasks.map(task => (
+                      <div key={task.id} className="flex items-center gap-4 p-4 bg-orange-500/5 rounded-2xl group border border-orange-500/10">
+                        <button onClick={() => onSkipTask(task.id)} className="text-orange-400 hover:text-orange-500"><Undo2 size={20} /></button>
+                        <div className="flex-1">
+                           <span className="text-sm font-bold text-orange-100/60 italic">{task.title}</span>
+                        </div>
+                        <button onClick={() => onDeleteTask(task.id)} className="text-white/0 group-hover:text-white/20 hover:text-red-400"><Trash2 size={16} /></button>
                       </div>
                     ))}
+                  </div>
+                )}
 
-                    {tasks.filter(t => t.completed).length > 0 && (
-                      <div className="pt-6 border-t border-white/10 mt-6">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-white/30">Done & Dusted</p>
-                        {tasks.filter(t => t.completed).map(task => (
-                          <div key={task.id} className="flex items-center gap-4 p-4 opacity-40 hover:opacity-100 transition-opacity">
-                            <button onClick={() => onToggleTask(task.id)} className="text-indigo-400">
-                              <CheckCircle2 size={22} />
-                            </button>
-                            <span className="flex-1 text-sm font-medium line-through">{task.title}</span>
-                            <button onClick={() => onDeleteTask(task.id)} className="text-white/20 hover:text-red-400">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        ))}
+                {completedTasks.length > 0 && (
+                  <div className="pt-6 border-t border-white/10 mt-6">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-emerald-400/40">Done & Dusted</p>
+                    {completedTasks.map(task => (
+                      <div key={task.id} className="flex items-center gap-4 p-4 opacity-40 hover:opacity-100 transition-opacity">
+                        <button onClick={() => onToggleTask(task.id)} className="text-indigo-400"><CheckCircle2 size={22} /></button>
+                        <span className="flex-1 text-sm font-medium line-through">{task.title}</span>
+                        <button onClick={() => onDeleteTask(task.id)} className="text-white/20 hover:text-red-400"><Trash2 size={16} /></button>
                       </div>
-                    )}
-                  </>
+                    ))}
+                  </div>
                 )}
              </div>
           </div>
