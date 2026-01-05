@@ -34,22 +34,35 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
   const [showPostSession, setShowPostSession] = React.useState(false);
 
   const presets = [15, 25, 45, 60, 90];
+  const today = new Date().toISOString().split('T')[0];
 
-  // Effect to automatically select the first available item if none is selected
+  // Auto-selection logic: find the first uncompleted habit or task
   React.useEffect(() => {
-    if (!selectedItem) {
-      if (habits.length > 0) {
-        setSelectedItem({ id: habits[0].id, type: 'habit' });
-      } else {
-        const activeTasks = tasks.filter(t => !t.completed);
-        if (activeTasks.length > 0) {
-          setSelectedItem({ id: activeTasks[0].id, type: 'task' });
-        } else {
-          setSelectedItem({ id: GENERAL_GOALS[0].id, type: 'general' });
-        }
+    const uncompletedHabits = habits.filter(h => !h.completedDates.includes(today));
+    const uncompletedTasks = tasks.filter(t => !t.completed);
+
+    // If current selected item is now completed, reset it
+    if (selectedItem) {
+      if (selectedItem.type === 'habit') {
+        const habit = habits.find(h => h.id === selectedItem.id);
+        if (!habit || habit.completedDates.includes(today)) setSelectedItem(null);
+      } else if (selectedItem.type === 'task') {
+        const task = tasks.find(t => t.id === selectedItem.id);
+        if (!task || task.completed) setSelectedItem(null);
       }
     }
-  }, [habits, tasks, selectedItem]);
+
+    // Only set a default if nothing is selected
+    if (!selectedItem) {
+      if (uncompletedHabits.length > 0) {
+        setSelectedItem({ id: uncompletedHabits[0].id, type: 'habit' });
+      } else if (uncompletedTasks.length > 0) {
+        setSelectedItem({ id: uncompletedTasks[0].id, type: 'task' });
+      } else {
+        setSelectedItem({ id: GENERAL_GOALS[0].id, type: 'general' });
+      }
+    }
+  }, [habits, tasks, selectedItem, today]);
 
   React.useEffect(() => {
     let interval: any = null;
@@ -74,7 +87,6 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
     return () => clearInterval(interval);
   }, [isActive, seconds, minutes]);
 
-  // Sync timer display with settings when not active
   React.useEffect(() => {
     if (!isActive && !showPostSession) {
       setMinutes(mode === 'focus' ? focusDuration : breakDuration);
@@ -85,7 +97,6 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
   const handleComplete = () => {
     setIsActive(false);
     
-    // Log time automatically if it was focus
     if (mode === 'focus' && selectedItem) {
       onLogTime(selectedItem.id, selectedItem.type, focusDuration);
     } else if (mode === 'break') {
@@ -139,6 +150,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
     if (selectedItem) {
       onMarkComplete(selectedItem.id, selectedItem.type);
       setShowLoggedPulse(true);
+      setSelectedItem(null); // Clear selection so useEffect picks next uncompleted item
       setTimeout(() => setShowLoggedPulse(false), 3000);
       startBreak();
     }
@@ -178,15 +190,13 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
     return GENERAL_GOALS.find(g => g.id === selectedItem.id)?.title;
   };
 
-  // Filter sessions for today only
-  const today = new Date().toISOString().split('T')[0];
   const todaySessions = sessions.filter(s => s.timestamp.startsWith(today));
   const totalFocusMinutes = todaySessions
     .filter(s => s.type === 'focus')
     .reduce((acc, s) => acc + s.durationMinutes, 0);
 
   return (
-    <div className="flex flex-col items-center justify-center animate-in zoom-in duration-500 py-8 px-4 relative max-w-2xl mx-auto">
+    <div className="flex flex-col items-center justify-center animate-in zoom-in duration-500 py-8 px-4 relative max-w-2xl mx-auto pb-20">
       {/* Post Session Modal */}
       {showPostSession && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -248,67 +258,97 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
 
       <div className="w-full space-y-6">
         {/* Settings and Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+        <div className="grid grid-cols-1 gap-4">
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><Settings2 size={16} /> Timer</h3>
-              <button onClick={() => setShowSettings(!showSettings)} className="text-[10px] font-bold text-indigo-600 underline">Custom</button>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><Settings2 size={16} className="text-indigo-500" /> Timer Configuration</h3>
+              <button onClick={() => setShowSettings(!showSettings)} className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-widest">
+                {showSettings ? 'Show Presets' : 'Custom Times'}
+              </button>
             </div>
+
             {!showSettings ? (
-              <div className="grid grid-cols-3 gap-2">
-                {[15, 25, 45].map(p => (
-                  <button key={p} onClick={() => setFocusDuration(p)} className={`py-2 rounded-xl text-xs font-bold ${focusDuration === p ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'}`}>{p}m</button>
+              <div className="grid grid-cols-5 gap-2">
+                {presets.map(p => (
+                  <button key={p} onClick={() => setFocusDuration(p)} className={`py-3 rounded-xl text-xs font-bold transition-all ${focusDuration === p ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-105' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}>
+                    {p}m
+                  </button>
                 ))}
               </div>
             ) : (
-              <div className="flex gap-2 animate-in slide-in-from-top-1">
-                <input type="number" value={focusDuration} onChange={e => setFocusDuration(Number(e.target.value))} className="w-1/2 px-3 py-2 bg-slate-50 rounded-lg text-xs" placeholder="Focus" />
-                <input type="number" value={breakDuration} onChange={e => setBreakDuration(Number(e.target.value))} className="w-1/2 px-3 py-2 bg-slate-50 rounded-lg text-xs" placeholder="Break" />
+              <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-1">
+                <div>
+                   <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Focus Time</label>
+                   <input type="number" value={focusDuration} onChange={e => setFocusDuration(Number(e.target.value))} className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+                <div>
+                   <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Break Time</label>
+                   <input type="number" value={breakDuration} onChange={e => setBreakDuration(Number(e.target.value))} className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
               </div>
             )}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Auto Break</span>
-              <button onClick={() => setAutoStartBreak(!autoStartBreak)} className={`w-10 h-5 rounded-full relative transition-colors ${autoStartBreak ? 'bg-indigo-600' : 'bg-slate-300'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${autoStartBreak ? 'translate-x-5' : 'translate-x-1'}`} />
+
+            <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${autoStartBreak ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${autoStartBreak ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'bg-white text-slate-400'}`}>
+                  <Zap size={18} fill={autoStartBreak ? 'currentColor' : 'none'} />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-slate-800 block">Auto-start next break</span>
+                  <span className="text-[10px] text-slate-500 font-medium">Instantly transitions when session ends</span>
+                </div>
+              </div>
+              <button onClick={() => setAutoStartBreak(!autoStartBreak)} className={`w-12 h-6 rounded-full relative transition-colors ${autoStartBreak ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${autoStartBreak ? 'translate-x-7' : 'translate-x-1'}`} />
               </button>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
-             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><Bell size={16} /> Working On</h3>
-             <select value={selectedItem ? `${selectedItem.type}:${selectedItem.id}` : ''} onChange={handleItemChange} className="w-full text-xs font-medium bg-slate-50 border-none rounded-xl p-3 outline-none">
-                <option value="">Choose goal...</option>
-                {habits.map(h => <option key={h.id} value={`habit:${h.id}`}>{h.title}</option>)}
-                {tasks.filter(t => !t.completed).map(t => <option key={t.id} value={`task:${t.id}`}>{t.title}</option>)}
-                {GENERAL_GOALS.map(g => <option key={g.id} value={`general:${g.id}`}>{g.title}</option>)}
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><Bell size={16} className="text-indigo-500" /> Focus Target</h3>
+             <select value={selectedItem ? `${selectedItem.type}:${selectedItem.id}` : ''} onChange={handleItemChange} className="w-full text-xs font-bold bg-slate-50 border-2 border-transparent focus:border-indigo-100 rounded-2xl p-4 outline-none transition-all appearance-none cursor-pointer">
+                <option value="">Choose your objective...</option>
+                {/* Filter out habits that are already completed today */}
+                {habits.filter(h => !h.completedDates.includes(today)).map(h => (
+                  <option key={h.id} value={`habit:${h.id}`}>{h.title}</option>
+                ))}
+                {/* Filter out completed tasks */}
+                {tasks.filter(t => !t.completed).map(t => (
+                  <option key={t.id} value={`task:${t.id}`}>{t.title}</option>
+                ))}
+                {GENERAL_GOALS.map(g => (
+                  <option key={g.id} value={`general:${g.id}`}>{g.title}</option>
+                ))}
              </select>
           </div>
         </div>
 
-        {/* Focus History Section */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+        {/* History */}
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-slate-900 font-bold flex items-center gap-2">
-              <History size={18} className="text-indigo-500" /> Today's Focus History
+              <History size={18} className="text-indigo-500" /> Session History
             </h3>
             <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-full">
               <Clock size={12} className="text-indigo-600" />
-              <span className="text-[10px] font-bold text-indigo-600">{totalFocusMinutes}m Total Focus</span>
+              <span className="text-[10px] font-bold text-indigo-600">{totalFocusMinutes}m Today</span>
             </div>
           </div>
 
           <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
             {todaySessions.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-xs text-slate-400 font-medium italic">No sessions logged yet today.</p>
-                <p className="text-[10px] text-slate-300 mt-1">Start your first session to see history here!</p>
+              <div className="text-center py-10">
+                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Clock size={24} className="text-slate-200" />
+                </div>
+                <p className="text-xs text-slate-400 font-medium">No sessions logged today yet.</p>
               </div>
             ) : (
               todaySessions.map((session) => (
-                <div key={session.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 animate-in slide-in-from-left-2">
+                <div key={session.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${session.type === 'focus' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                      {session.type === 'focus' ? <Brain size={16} /> : <Coffee size={16} />}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${session.type === 'focus' ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white text-emerald-600 shadow-sm'}`}>
+                      {session.type === 'focus' ? <Brain size={18} /> : <Coffee size={18} />}
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800">{session.goalTitle}</p>
@@ -317,7 +357,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
                       </p>
                     </div>
                   </div>
-                  <div className={`text-[10px] font-bold px-2 py-1 rounded-lg ${session.type === 'focus' ? 'bg-indigo-600 text-white' : 'bg-emerald-500 text-white'}`}>
+                  <div className={`text-[10px] font-bold px-3 py-1 rounded-full ${session.type === 'focus' ? 'bg-indigo-600 text-white' : 'bg-emerald-500 text-white'}`}>
                     {session.durationMinutes}m
                   </div>
                 </div>

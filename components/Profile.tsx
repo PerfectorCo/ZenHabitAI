@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { User, Mail, Target, Save, Cloud, LogOut } from 'lucide-react';
+import { User, Mail, Target, Save, Cloud, LogOut, Bell, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface ProfileProps {
@@ -12,6 +12,15 @@ interface ProfileProps {
 const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
   const [formData, setFormData] = React.useState(profile);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [notifPermission, setNotifPermission] = React.useState<NotificationPermission>(
+    "Notification" in window ? Notification.permission : "default"
+  );
+
+  const requestNotificationPermission = async () => {
+    if (!("Notification" in window)) return;
+    const permission = await Notification.requestPermission();
+    setNotifPermission(permission);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +33,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">User Profile</h1>
@@ -102,22 +111,44 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
           />
         </div>
 
-        <div className="pt-4 flex items-center justify-between border-t border-slate-50">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Cloud size={14} />
-            Data is securely stored in your personal database
-          </div>
+        <div className="pt-6 mt-4 border-t border-slate-100">
+           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+              <Bell size={18} className="text-indigo-500" /> System Permissions
+           </h3>
+           <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-100">
+              <div className="flex items-center gap-3">
+                 <div className={`p-2 rounded-lg ${notifPermission === 'granted' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-500'}`}>
+                    {notifPermission === 'granted' ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
+                 </div>
+                 <div>
+                    <p className="text-sm font-bold text-slate-700">Browser Notifications</p>
+                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tighter">Status: {notifPermission}</p>
+                 </div>
+              </div>
+              {notifPermission !== 'granted' && (
+                <button 
+                  type="button"
+                  onClick={requestNotificationPermission}
+                  className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition-all shadow-sm"
+                >
+                  Enable Now
+                </button>
+              )}
+           </div>
+        </div>
+
+        <div className="pt-8 flex justify-end">
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold transition-all disabled:opacity-50 shadow-lg shadow-indigo-100"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-100 disabled:opacity-70"
           >
-            {isSaving ? 'Saving...' : (
-              <>
-                <Save size={18} />
-                Save Changes
-              </>
+            {isSaving ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Save size={18} />
             )}
+            Save Changes
           </button>
         </div>
       </form>
@@ -125,4 +156,5 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
   );
 };
 
+// Fix: Added default export for Profile component
 export default Profile;

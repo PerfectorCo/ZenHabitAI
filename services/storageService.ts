@@ -166,6 +166,19 @@ export const StorageService = {
     }
   },
 
+  deleteTask: async (taskId: string) => {
+    const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(localTasks.filter((t: Task) => t.id !== taskId)));
+
+    if (supabase) {
+      try {
+        await supabase.from('tasks').delete().eq('id', taskId);
+      } catch (e) {
+        console.error("Supabase task deletion failed", e);
+      }
+    }
+  },
+
   // Focus Session Operations
   getFocusSessions: async (userId: string): Promise<FocusSession[]> => {
     if (supabase) {

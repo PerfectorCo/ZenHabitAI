@@ -1,8 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Habit, Recommendation, UserProfile } from "../types";
+import { Habit, Recommendation, UserProfile, FocusSession } from "../types";
 
-// Always use the correct initialization pattern with named parameter and direct process.env.API_KEY access
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getAIRecommendations = async (habits: Habit[], profile: UserProfile): Promise<Recommendation[]> => {
@@ -64,5 +63,26 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
       },
       { title: "Review Your Goals", reason: "Reflect on why you started these habits to boost motivation.", priority: "low" }
     ];
+  }
+};
+
+export const getAIInsights = async (habits: Habit[], sessions: FocusSession[], period: 'day' | 'week' | 'month'): Promise<string> => {
+  const habitsSummary = habits.map(h => ({ title: h.title, completions: h.completedDates.length }));
+  const totalFocus = sessions.filter(s => s.type === 'focus').reduce((acc, s) => acc + s.durationMinutes, 0);
+
+  const prompt = `Analyze this user's habit data for the past ${period}:
+  Habits: ${JSON.stringify(habitsSummary)}
+  Total Focus Time: ${totalFocus} minutes.
+  
+  Give a brief (max 3 sentences), highly motivational and personal insight in a supportive 'Zen coach' tone. Focus on consistency and growth.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+    });
+    return response.text || "You are doing great! Keep focusing on your journey.";
+  } catch (e) {
+    return "The path to a thousand miles begins with a single step. Your consistency is your strength.";
   }
 };

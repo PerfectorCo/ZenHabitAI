@@ -17,14 +17,25 @@ export interface Habit {
   targetCount: number; // sessions per day/week
   streak: number;
   timeSpentMinutes: number;
+  reminderTime?: string; // HH:mm format
 }
 
 export interface Task {
   id: string;
   title: string;
   completed: boolean;
+  completedDates?: string[]; // Track when task was completed (useful for recurring tasks)
   timeSpent: number; // in seconds
   createdAt: string;
+  reminderTime?: string; // HH:mm format
+  isRecurring?: boolean; // If true, resets daily
+}
+
+export interface TaskTemplate {
+  id: string;
+  title: string;
+  category: string;
+  isRecurring: boolean;
 }
 
 export interface FocusSession {
