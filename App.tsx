@@ -316,7 +316,7 @@ const App: React.FC = () => {
       case 'profile': return <Profile profile={profile} onSave={(p) => setProfile(p)} onLogout={handleLogout} />;
       case 'feedback': return <Feedback />;
       case 'pricing': return <Pricing onSelectPlan={handleUpdateSubscription} currentPlan={profile.subscription} />;
-      case 'checkout': return <Checkout plan={pendingPlan || 'pro'} onConfirm={finalizeSubscription} onCancel={() => { setView('pricing'); setPendingPlan(null); }} />;
+      case 'checkout': return <Checkout userEmail={profile.email} plan={pendingPlan || 'pro'} onConfirm={finalizeSubscription} onCancel={() => { setView('pricing'); setPendingPlan(null); }} />;
       case 'payment-success': return <PaymentSuccess onContinue={() => setView('dashboard')} />;
       default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
     }
