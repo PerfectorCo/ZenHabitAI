@@ -4,7 +4,47 @@ import { Habit, Task, Recommendation, UserProfile, FocusSession } from "../types
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const getAIRecommendations = async (habits: Habit[], profile: UserProfile, lang: 'en' | 'vi' = 'en'): Promise<Recommendation[] | { error: string }> => {
+// Timeless Wisdom Fallbacks for when the AI is "reflecting" (Quota hit)
+const getStaticFallbacks = (goal: string, lang: 'en' | 'vi'): Recommendation[] => {
+  const isVi = lang === 'vi';
+  const fallbacks: Record<string, Recommendation[]> = {
+    prod: [
+      {
+        title: isVi ? "Khởi đầu tĩnh lặng" : "A Quiet Start",
+        reason: isVi ? "Bắt đầu ngày mới không thiết bị điện tử giúp tâm trí minh mẫn hơn." : "Starting the day without digital noise allows for deeper clarity.",
+        priority: 'high',
+        suggestedHabit: { title: isVi ? "10 phút không điện thoại buổi sáng" : "10m No-Phone Morning", category: 'Mindset' }
+      },
+      {
+        title: isVi ? "Nhịp nghỉ tập trung" : "Focused Interval",
+        reason: isVi ? "Làm việc theo nhịp độ giúp duy trì năng lượng bền bỉ." : "Working in rhythms prevents exhaustion and maintains quality.",
+        priority: 'medium',
+        suggestedHabit: { title: isVi ? "Một phiên Pomodoro sâu" : "One Deep Pomodoro", category: 'Work' }
+      }
+    ],
+    fitness: [
+      {
+        title: isVi ? "Chuyển động nhẹ nhàng" : "Gentle Movement",
+        reason: isVi ? "Cơ thể cần sự vận động để lưu thông dòng chảy năng lượng." : "The body thrives on movement to keep the energy flowing.",
+        priority: 'high',
+        suggestedHabit: { title: isVi ? "Giãn cơ 5 phút" : "5m Mindful Stretching", category: 'Health' }
+      }
+    ],
+    mental: [
+      {
+        title: isVi ? "Hơi thở chánh niệm" : "Mindful Breath",
+        reason: isVi ? "Quay về với hơi thở là cách nhanh nhất để tìm lại sự cân bằng." : "Returning to the breath is the swiftest path to inner balance.",
+        priority: 'high',
+        suggestedHabit: { title: isVi ? "3 phút hít thở sâu" : "3m Deep Breathing", category: 'Mindset' }
+      }
+    ]
+  };
+
+  const key = Object.keys(fallbacks).find(k => goal.toLowerCase().includes(k)) || 'prod';
+  return fallbacks[key];
+};
+
+export const getAIRecommendations = async (habits: Habit[], profile: UserProfile, lang: 'en' | 'vi' = 'en'): Promise<Recommendation[] | { error: string, fallbacks: Recommendation[] }> => {
   const habitsSummary = habits.map(h => ({
     title: h.title,
     streak: h.streak,
@@ -42,8 +82,8 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
   - If EXISTING: Suggest habits that complement their routine or fill gaps for ${focusArea}.
 
   JSON Structure:
-  - title: A simple title (e.g., "Morning Breathwork" or "Nhịp thở buổi sáng").
-  - reason: A short sentence explaining why this fits their focus (${focusArea}). NO commands.
+  - title: A simple title.
+  - reason: A short sentence explaining why this fits their focus.
   - priority: 'low', 'medium', or 'high'.
   - suggestedHabit: { title, category: 'Health', 'Mindset', 'Work', or 'Skills' }
 
@@ -80,11 +120,12 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
 
     return JSON.parse(response.text || "[]");
   } catch (error: any) {
-    console.error("AI Error:", error);
+    console.warn("AI Recommendations Quota/Error:", error);
+    const fallbacks = getStaticFallbacks(focusArea, lang);
     if (error?.message?.includes('429') || error?.status === 429) {
-      return { error: 'quota' };
+      return { error: 'quota', fallbacks };
     }
-    return [];
+    return fallbacks;
   }
 };
 
@@ -93,12 +134,6 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
   const tasksSummary = tasks.map(t => ({ title: t.title, completed: t.completed }));
   const totalFocus = sessions.filter(s => s.type === 'focus').reduce((acc, s) => acc + s.durationMinutes, 0);
   
-  const totalHistoricalCompletions = habits.reduce((acc, h) => acc + h.completedDates.length, 0) + tasks.filter(t => t.completed).length;
-  const joinedDate = new Date(profile.joinedDate);
-  const daysSinceJoined = Math.floor((new Date().getTime() - joinedDate.getTime()) / (1000 * 3600 * 24));
-  
-  const isNewUser = daysSinceJoined < 3 && totalHistoricalCompletions === 0;
-  const isInactiveUser = daysSinceJoined >= 7 && habitsSummary.every(h => h.completions === 0) && tasksSummary.every(t => !t.completed) && totalFocus === 0;
   const focusArea = profile.mainGoal || 'their goals';
 
   const prompt = `Contextual Analysis for User: ${profile.name}
@@ -114,14 +149,9 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
   
   Zen Language Rules (MANDATORY):
   1. MAX 3 SENTENCES.
-  2. NO bullet points, NO numbers, NO emojis, NO special symbols (#, *, etc).
+  2. NO bullet points, NO numbers, NO emojis, NO special symbols.
   3. Tone: Calm, reflective, non-judgmental. 
-  4. Never use "must", "should", or "failed". Use "can", "pause", "begin", "aligned".
-  5. If inactive: Offer gentle encouragement that every day is a fresh beginning.
-  6. Response must be strictly in ${lang === 'vi' ? 'Vietnamese' : 'English'}.
-  
-  Example (English): This week you returned more often than you left. Your rhythm is becoming steadier. Keep going in the same gentle way.
-  Example (Vietnamese): Tuần này nhịp điệu của bạn đang dần trở nên ổn định hơn. Mỗi ngày là một khởi đầu mới và bạn đang đi đúng hướng. Hãy cứ tiếp tục một cách nhẹ nhàng như vậy.`;
+  4. Response must be strictly in ${lang === 'vi' ? 'Vietnamese' : 'English'}.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -134,16 +164,13 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
     });
     
     let result = response.text || "";
-    // Clean any residual symbols
     result = result.replace(/[*_#\-•]/g, '').trim();
     return result;
   } catch (error: any) {
-    if (error?.message?.includes('429') || error?.status === 429) {
-      return lang === 'vi' ? "Zen Sensei đang chiêm nghiệm. Hãy quay lại sau một lát nhé." : "The Zen Sensei is reflecting. Please come back in a little while.";
-    }
+    console.warn("AI Insights Quota/Error:", error);
     if (lang === 'vi') {
-      return "Mỗi ngày là một khởi đầu mới. Bạn có thể bắt đầu lại bất cứ khi nào sẵn sàng.";
+      return "Zen Sensei đang chiêm nghiệm sâu sắc. Trong lúc chờ đợi, hãy nhớ rằng mỗi bước đi nhỏ hôm nay đều là một phần của hành trình lớn.";
     }
-    return "Every day is a fresh beginning. You can start again whenever you are ready.";
+    return "The Zen Sensei is in deep reflection. While we wait, remember that every small step today is part of a greater journey.";
   }
 };

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, Heart, X, AlertCircle } from 'lucide-react';
+import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, Heart, X, AlertCircle, Leaf } from 'lucide-react';
 import { Habit, Task, Recommendation, UserProfile, StoredAIRecommendations } from '../types';
 import { getAIRecommendations } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -20,7 +20,7 @@ const RECS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabit, onNavigateToPricing }) => {
   const [recommendations, setRecommendations] = React.useState<Recommendation[]>([]);
   const [loadingAI, setLoadingAI] = React.useState(true);
-  const [aiError, setAiError] = React.useState<string | null>(null);
+  const [aiIsReflecting, setAiIsReflecting] = React.useState(false);
   const [addedIds, setAddedIds] = React.useState<number[]>([]);
   const [showInvitation, setShowInvitation] = React.useState<'refresh' | 'positive' | null>(null);
   const { t, language } = useLanguage();
@@ -28,14 +28,13 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
   const isPro = profile.subscription === 'pro' || profile.subscription === 'master';
 
   const fetchRecs = async (forceRefresh = false) => {
-    // Feature Gate: Free users cannot force refresh
     if (forceRefresh && !isPro) {
       setShowInvitation('refresh');
       return;
     }
 
     setLoadingAI(true);
-    setAiError(null);
+    setAiIsReflecting(false);
     
     if (!forceRefresh) {
       const stored = StorageService.getStoredAIRecommendations();
@@ -55,16 +54,9 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
     const recs = await getAIRecommendations(habits, profile, language);
     
     if (recs && 'error' in recs) {
-      if (recs.error === 'quota') {
-        setAiError(t('errors.quotaExceeded'));
-      } else {
-        setAiError(t('errors.apiError'));
-      }
-      // If we have cached recs, keep them instead of showing error only
-      const stored = StorageService.getStoredAIRecommendations();
-      if (stored) setRecommendations(stored.recommendations);
+      setAiIsReflecting(true);
+      setRecommendations(recs.fallbacks);
     } else if (recs && Array.isArray(recs)) {
-      // Feature Gate: Limit to 3 for free users
       const processedRecs = isPro ? recs : recs.slice(0, 3);
       setRecommendations(processedRecs);
       
@@ -82,7 +74,6 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
   React.useEffect(() => {
     fetchRecs();
     
-    // Check for "Positive Reinforcement" moment
     const todayStr = new Date().toISOString().split('T')[0];
     const completedToday = habits.filter(h => h.completedDates.includes(todayStr)).length;
     if (completedToday >= 3 && !isPro && !localStorage.getItem('zenhabit_positive_dismissed')) {
@@ -200,7 +191,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <Sparkles className="text-indigo-500" size={20} />
-              {t('dashboard.aiRecs')}
+              {aiIsReflecting ? (language === 'vi' ? 'Trí tuệ vượt thời gian' : 'Timeless Wisdom') : t('dashboard.aiRecs')}
             </h2>
             <button 
               onClick={() => fetchRecs(true)} 
@@ -213,10 +204,14 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
           </div>
 
           <div className="space-y-4">
-            {aiError && (
-              <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700 font-medium italic">"{aiError}"</p>
+            {aiIsReflecting && (
+              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                <Leaf size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-indigo-700 font-medium italic">
+                  {language === 'vi' 
+                    ? "Zen Sensei đang chiêm nghiệm. Đây là những lời khuyên vượt thời gian dành cho bạn." 
+                    : "The Zen Sensei is reflecting. Here is some timeless wisdom for your journey."}
+                </p>
               </div>
             )}
 
@@ -244,7 +239,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
                   {rec.suggestedHabit && (
                     <div className="flex items-center justify-between pt-3 border-t border-slate-50">
                       <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
-                        {t('dashboard.aiRecs')}
+                        {aiIsReflecting ? (language === 'vi' ? 'Lời khuyên' : 'Wisdom') : t('dashboard.aiRecs')}
                       </div>
                       {addedIds.includes(i) ? (
                         <span className="flex items-center gap-1 text-xs font-bold text-emerald-500">

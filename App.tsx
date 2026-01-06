@@ -10,6 +10,8 @@ import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 import Feedback from './components/Feedback';
 import Pricing from './components/Pricing';
+import Checkout from './components/Checkout';
+import PaymentSuccess from './components/PaymentSuccess';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
 import { StorageService } from './services/storageService';
 import { useLanguage } from './LanguageContext';
@@ -24,6 +26,7 @@ const App: React.FC = () => {
   const [categories, setCategories] = React.useState<string[]>([]);
   const [taskTemplates, setTaskTemplates] = React.useState<TaskTemplate[]>([]);
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
+  const [pendingPlan, setPendingPlan] = React.useState<'pro' | 'master' | null>(null);
   
   const { t, language } = useLanguage();
 
@@ -141,10 +144,25 @@ const App: React.FC = () => {
 
   const handleUpdateSubscription = async (plan: 'free' | 'pro' | 'master') => {
     if (!profile) return;
+    if (plan === 'pro' || plan === 'master') {
+      setPendingPlan(plan);
+      setView('checkout');
+      return;
+    }
     const userId = StorageService.getUserId();
     const updatedProfile = { ...profile, subscription: plan };
     setProfile(updatedProfile);
     await StorageService.saveProfile(userId, updatedProfile);
+  };
+
+  const finalizeSubscription = async () => {
+    if (!profile || !pendingPlan) return;
+    const userId = StorageService.getUserId();
+    const updatedProfile: UserProfile = { ...profile, subscription: pendingPlan };
+    setProfile(updatedProfile);
+    await StorageService.saveProfile(userId, updatedProfile);
+    setPendingPlan(null);
+    setView('payment-success'); // Navigate to success screen
   };
 
   const addHabit = async (title: string, category: string, reminderTime?: string) => {
@@ -298,6 +316,8 @@ const App: React.FC = () => {
       case 'profile': return <Profile profile={profile} onSave={(p) => setProfile(p)} onLogout={handleLogout} />;
       case 'feedback': return <Feedback />;
       case 'pricing': return <Pricing onSelectPlan={handleUpdateSubscription} currentPlan={profile.subscription} />;
+      case 'checkout': return <Checkout plan={pendingPlan || 'pro'} onConfirm={finalizeSubscription} onCancel={() => { setView('pricing'); setPendingPlan(null); }} />;
+      case 'payment-success': return <PaymentSuccess onContinue={() => setView('dashboard')} />;
       default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
     }
   };

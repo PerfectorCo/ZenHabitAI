@@ -25,7 +25,9 @@ export const translations = {
       ok: 'OK',
       submit: 'Submit',
       goPro: 'Go Deeper',
-      later: 'Maybe later'
+      later: 'Maybe later',
+      monthly: 'Monthly',
+      yearly: 'Yearly'
     },
     errors: {
       quotaExceeded: 'The Zen Sensei is reflecting. Please come back in a little while.',
@@ -250,7 +252,9 @@ export const translations = {
       ok: 'Đồng ý',
       submit: 'Gửi góp ý',
       goPro: 'Đi sâu hơn',
-      later: 'Để sau'
+      later: 'Để sau',
+      monthly: 'Tháng',
+      yearly: 'Năm'
     },
     errors: {
       quotaExceeded: 'Zen Sensei đang chiêm nghiệm. Hãy quay lại sau một lát nhé.',

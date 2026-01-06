@@ -91,4 +91,4 @@ export interface StoredAIInsights {
   language: string;
 }
 
-export type ViewType = 'dashboard' | 'habits' | 'pomodoro' | 'analytics' | 'profile' | 'onboarding' | 'feedback' | 'pricing';
+export type ViewType = 'dashboard' | 'habits' | 'pomodoro' | 'analytics' | 'profile' | 'onboarding' | 'feedback' | 'pricing' | 'checkout' | 'payment-success';

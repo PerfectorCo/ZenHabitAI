@@ -73,6 +73,9 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile,
   const handlePeriodChange = (p: Period) => {
     if ((p === 'day' || p === 'month') && !isPro) {
       setShowInvitation('insights');
+      // LỖI: Cũ là vẫn setPeriod(p). 
+      // SỬA: Không gọi setPeriod(p) để dữ liệu bên dưới không bị thay đổi.
+      return;
     }
     setPeriod(p);
   };
