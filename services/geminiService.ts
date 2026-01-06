@@ -12,7 +12,6 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
     completionRate: h.completedDates.length
   }));
 
-  // Logic to determine user state for recommendations
   const totalHistoricalCompletions = habits.reduce((acc, h) => acc + h.completedDates.length, 0);
   const joinedDate = new Date(profile.joinedDate);
   const daysSinceJoined = Math.floor((new Date().getTime() - joinedDate.getTime()) / (1000 * 3600 * 24));
@@ -24,28 +23,31 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
   Name: ${profile.name}
   Main Habit Focus (Goal): ${focusArea}
   Bio: ${profile.bio}
-  User State: ${isNewUser ? 'BRAND NEW USER (just started)' : 'EXISTING USER'}
+  User State: ${isNewUser ? 'BRAND NEW USER' : 'EXISTING USER'}
 
   Current Habit Data: ${JSON.stringify(habitsSummary)}
-  
   Language: ${lang === 'vi' ? 'Vietnamese' : 'English'}
 
   Your Task:
   Provide 3 highly personalized habit recommendations. 
   
-  Personalization Rules:
-  1. If BRAND NEW USER: Suggest foundational habits that align perfectly with their "Main Habit Focus" (${focusArea}). Keep them easy to start (Atomic Habits style).
-  2. If EXISTING USER: Suggest habits that complement their existing routine or address gaps in their "Main Habit Focus".
-  3. Tone: Supportive, wise, and encouraging.
-  4. Language: Use natural, conversational ${lang === 'vi' ? 'Vietnamese' : 'English'}. Avoid unusual characters like semicolons (;).
+  Zen Tone Rules (STRICT):
+  1. Use calm, non-judgmental, and gentle language.
+  2. NO emojis, NO bullet points, NO special characters like # or *.
+  3. Tone: Like a quiet mentor. Supportive but never pushy.
+  4. Language: Natural, conversational ${lang === 'vi' ? 'Vietnamese' : 'English'}.
   
-  JSON Structure:
-  - title: A catchy title for the recommendation.
-  - reason: Why this fits their current focus (${focusArea}) and state.
-  - priority: 'low', 'medium', or 'high'.
-  - suggestedHabit: An object with 'title' and 'category' (Health, Mindset, Work, or Skills) that the user can add.
+  Recommendation Logic:
+  - If BRAND NEW: Suggest foundational habits for ${focusArea}. Keep them "Atomic" (easy to start).
+  - If EXISTING: Suggest habits that complement their routine or fill gaps for ${focusArea}.
 
-  IMPORTANT: Return valid JSON in ${lang === 'vi' ? 'Vietnamese' : 'English'}.`;
+  JSON Structure:
+  - title: A simple title (e.g., "Morning Breathwork" or "Nhịp thở buổi sáng").
+  - reason: A short sentence explaining why this fits their focus (${focusArea}). NO commands.
+  - priority: 'low', 'medium', or 'high'.
+  - suggestedHabit: { title, category: 'Health', 'Mindset', 'Work', or 'Skills' }
+
+  IMPORTANT: Return valid JSON.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -76,11 +78,7 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
       }
     });
 
-    let cleanedText = response.text || "[]";
-    // Sanitize any semicolons that might have slipped into the JSON strings
-    cleanedText = cleanedText.replace(/;/g, ',');
-    
-    return JSON.parse(cleanedText);
+    return JSON.parse(response.text || "[]");
   } catch (error) {
     console.error("AI Error:", error);
     return [];
@@ -92,7 +90,6 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
   const tasksSummary = tasks.map(t => ({ title: t.title, completed: t.completed }));
   const totalFocus = sessions.filter(s => s.type === 'focus').reduce((acc, s) => acc + s.durationMinutes, 0);
   
-  // Logic to determine user state
   const totalHistoricalCompletions = habits.reduce((acc, h) => acc + h.completedDates.length, 0) + tasks.filter(t => t.completed).length;
   const joinedDate = new Date(profile.joinedDate);
   const daysSinceJoined = Math.floor((new Date().getTime() - joinedDate.getTime()) / (1000 * 3600 * 24));
@@ -102,53 +99,45 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
   const focusArea = profile.mainGoal || 'their goals';
 
   const prompt = `Contextual Analysis for User: ${profile.name}
-  Joined Date: ${profile.joinedDate} (${daysSinceJoined} days ago)
-  Total History Completions: ${totalHistoricalCompletions}
   Main Goal: ${focusArea}
-  
   Recent Data (${period}):
   - Habits: ${JSON.stringify(habitsSummary)}
   - Tasks: ${JSON.stringify(tasksSummary)}
   - Deep Work: ${totalFocus} minutes.
-  
-  User State: ${isNewUser ? 'BRAND NEW USER (just started today/yesterday)' : isInactiveUser ? 'INACTIVE USER (no progress for at least a week)' : 'ACTIVE USER'}
   Preferred Language: ${lang === 'vi' ? 'Vietnamese' : 'English'}
 
   Your Task:
-  As a 'Zen Sensei' life coach, provide a brief, warm, and natural conversational insight (max 3 sentences).
-  - If they are a BRAND NEW USER: Welcome them warmly. Focus on their chosen goal: ${focusArea}.
-  - If they are an INACTIVE USER: Offer gentle encouragement to return to ${focusArea}. Remind them that every day is a fresh beginning.
-  - If they are an ACTIVE USER: Praise their progress toward ${focusArea}.
+  As a 'Zen Sensei', provide a brief insight.
   
-  Rules:
-  - Use smooth, natural, human language.
-  - NEVER use semicolons (;), special symbols like # or *, or bullet points.
-  - Tone: Calm, supportive, wise, and motivating.
-  - Response must be strictly in ${lang === 'vi' ? 'Vietnamese' : 'English'}.`;
+  Zen Language Rules (MANDATORY):
+  1. MAX 3 SENTENCES.
+  2. NO bullet points, NO numbers, NO emojis, NO special symbols (#, *, etc).
+  3. Tone: Calm, reflective, non-judgmental. 
+  4. Never use "must", "should", or "failed". Use "can", "pause", "begin", "aligned".
+  5. If inactive: Offer gentle encouragement that every day is a fresh beginning.
+  6. Response must be strictly in ${lang === 'vi' ? 'Vietnamese' : 'English'}.
+  
+  Example (English): This week you returned more often than you left. Your rhythm is becoming steadier. Keep going in the same gentle way.
+  Example (Vietnamese): Tuần này nhịp điệu của bạn đang dần trở nên ổn định hơn. Mỗi ngày là một khởi đầu mới và bạn đang đi đúng hướng. Hãy cứ tiếp tục một cách nhẹ nhàng như vậy.`;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
-        temperature: 0.8,
-        topP: 0.9,
+        temperature: 0.7,
+        topP: 0.8,
       }
     });
     
     let result = response.text || "";
-    // Robust cleaning of characters that might clutter the UI
-    result = result.replace(/;/g, ',').replace(/[*_#\-•]/g, '').trim();
-    
+    // Clean any residual symbols
+    result = result.replace(/[*_#\-•]/g, '').trim();
     return result;
   } catch (e) {
     if (lang === 'vi') {
-      return isNewUser 
-        ? "Chào mừng bạn đến với hành trình mới. Hãy bắt đầu từ những việc nhỏ nhất ngày hôm nay nhé."
-        : "Đã lâu không thấy bạn, nhưng không sao cả. Mỗi ngày đều là một cơ hội mới để chúng ta bắt đầu lại.";
+      return "Mỗi ngày là một khởi đầu mới. Bạn có thể bắt đầu lại bất cứ khi nào sẵn sàng.";
     }
-    return isNewUser
-      ? "Welcome to your new journey. The first step is always the most meaningful one."
-      : "It has been a while, but that is perfectly okay. Every sunset is followed by a fresh sunrise and a new chance to begin.";
+    return "Every day is a fresh beginning. You can start again whenever you are ready.";
   }
 };

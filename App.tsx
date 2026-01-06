@@ -9,6 +9,7 @@ import Profile from './components/Profile';
 import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 import Feedback from './components/Feedback';
+import Pricing from './components/Pricing';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
 import { StorageService } from './services/storageService';
 import { useLanguage } from './LanguageContext';
@@ -287,6 +288,7 @@ const App: React.FC = () => {
       case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} />;
       case 'profile': return <Profile profile={profile} onSave={(p) => setProfile(p)} onLogout={handleLogout} />;
       case 'feedback': return <Feedback />;
+      case 'pricing': return <Pricing />;
       default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
     }
   };

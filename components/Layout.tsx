@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, CheckCircle2, Timer, BarChart3, Menu, X, User, Globe, MessageSquarePlus } from 'lucide-react';
+import { LayoutDashboard, CheckCircle2, Timer, BarChart3, Menu, X, User, Globe, MessageSquarePlus, Heart } from 'lucide-react';
 import { ViewType, UserProfile } from '../types';
 import { useLanguage } from '../LanguageContext';
 
@@ -82,14 +82,19 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
               {t('nav.feedback')}
             </button>
 
-            <div className="bg-slate-50 rounded-xl p-4">
+            <div 
+              onClick={() => { setView('pricing'); setIsSidebarOpen(false); }}
+              className={`bg-slate-50 rounded-xl p-4 cursor-pointer hover:bg-indigo-50 transition-colors group ${currentView === 'pricing' ? 'bg-indigo-50 ring-1 ring-indigo-100' : ''}`}
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
                   {userProfile.name.charAt(0)}
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-bold text-slate-800 truncate">{userProfile.name}</p>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-tighter">{t('common.proPlan')}</p>
+                  <p className="text-[10px] text-indigo-500 font-black uppercase tracking-tighter flex items-center gap-1">
+                    <Heart size={10} className="fill-indigo-500" /> {t('common.proPlan')}
+                  </p>
                 </div>
               </div>
             </div>

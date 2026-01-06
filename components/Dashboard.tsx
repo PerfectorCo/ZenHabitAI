@@ -25,7 +25,6 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
   const fetchRecs = async (forceRefresh = false) => {
     setLoadingAI(true);
     
-    // Check cache first if not forcing refresh
     if (!forceRefresh) {
       const stored = StorageService.getStoredAIRecommendations();
       if (stored) {
@@ -41,19 +40,17 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
       }
     }
 
-    // Call Gemini API
     const recs = await getAIRecommendations(habits, profile, language);
-    setRecommendations(recs);
-    
-    // Save to cache
-    const newCache: StoredAIRecommendations = {
-      recommendations: recs,
-      timestamp: new Date().toISOString(),
-      mainGoal: profile.mainGoal,
-      language: language
-    };
-    StorageService.saveAIRecommendations(newCache);
-    
+    if (recs && recs.length > 0) {
+      setRecommendations(recs);
+      const newCache: StoredAIRecommendations = {
+        recommendations: recs,
+        timestamp: new Date().toISOString(),
+        mainGoal: profile.mainGoal,
+        language: language
+      };
+      StorageService.saveAIRecommendations(newCache);
+    }
     setLoadingAI(false);
   };
 
@@ -83,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-          {t('dashboard.welcome')}, {profile.name.split(' ')[0]}!
+          {t('dashboard.welcome')}
         </h1>
         <p className="text-slate-500">{t('dashboard.focusForToday')}: <span className="text-indigo-600 font-medium">{mainGoalText}</span></p>
       </header>
@@ -144,6 +141,8 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
               Array(3).fill(0).map((_, i) => (
                 <div key={i} className="h-24 bg-slate-100 rounded-2xl animate-pulse" />
               ))
+            ) : recommendations.length === 0 ? (
+               <div className="p-10 text-center text-slate-400 italic text-sm">{t('analytics.heatwave')}</div>
             ) : (
               recommendations.map((rec, i) => (
                 <div key={i} className="group bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all cursor-default relative overflow-hidden">

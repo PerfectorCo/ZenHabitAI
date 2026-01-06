@@ -25,6 +25,59 @@ export const translations = {
       ok: 'OK',
       submit: 'Submit'
     },
+    pricing: {
+      page: {
+        title: 'Choose the rhythm that fits you',
+        subtitle: 'ZenHabit AI doesn’t push you to be perfect. It simply helps you understand yourself, one day at a time.'
+      },
+      plans: {
+        free: {
+          name: 'Free',
+          tagline: 'Start the path',
+          description: 'For those beginning to build discipline and exploring a more intentional rhythm of living.',
+          features: [
+            'Unlimited habits & tasks',
+            'Full Pomodoro focus timer',
+            'Basic analytics & streak tracking',
+            'Device sync',
+            '3 AI habit suggestions each day',
+            'Weekly Zen Sensei insight'
+          ],
+          cta: 'Continue with Free'
+        },
+        pro: {
+          name: 'Pro',
+          tagline: 'Clarity & Consistency',
+          price: '3.99 USD / month',
+          description: 'For when you want to go deeper — not just to do, but to understand why you’re doing it.',
+          features: [
+            'Unlimited context-aware AI habit guidance',
+            'Daily, weekly, and monthly Zen Sensei insights',
+            'Deeper analysis of habit strength and deep work',
+            'Long-term history and perspective',
+            'Calm, non-judgmental AI experience'
+          ],
+          cta: 'Go deeper with Pro'
+        },
+        master: {
+          name: 'Zen Master',
+          tagline: 'Live with intention',
+          status: 'Coming soon',
+          description: 'For those who wish to turn discipline into a way of living.',
+          features: [
+            'AI insights by focus area',
+            'Deeper, coaching-style reflections',
+            'Data export & reflective journaling',
+            'Early access to new experiences'
+          ],
+          cta: 'Sowing the seeds'
+        }
+      },
+      closing: {
+        title: 'You are never forced to pay',
+        message: 'ZenHabit AI stays with you, no matter which rhythm you choose. When you’re ready to go deeper, Pro will be there.'
+      }
+    },
     feedback: {
       header: 'Send Feedback',
       subtitle: 'Your suggestions help us build a better ZenHabit AI.',
@@ -36,12 +89,12 @@ export const translations = {
       },
       messageLabel: 'Your Message',
       messagePlh: 'Tell us what you are thinking...',
-      success: 'Thank you! Your feedback has been received.',
+      success: 'Thank you. Your feedback has been received.',
       error: 'Something went wrong. Please try again later.'
     },
     auth: {
       welcome: 'ZenHabit AI',
-      subtitle: 'Your personalized journey to mindfulness and productivity starts here. Sign in to sync your habits to the cloud.',
+      subtitle: 'Your journey to mindfulness and productivity starts here. Sign in to sync your habits.',
       google: 'Continue with Google',
       facebook: 'Continue with Facebook',
       terms: 'By continuing, you agree to our Terms of Service'
@@ -52,13 +105,13 @@ export const translations = {
       customGoalAdd: 'Set custom goal'
     },
     dashboard: {
-      welcome: 'Welcome back',
+      welcome: 'What rhythm are you in today?',
       focusForToday: 'Your focus for today',
       progress: "Today's Progress",
-      progressSub: "Keep it up! You're almost at your daily goal.",
+      progressSub: "Keep going. You are moving toward your daily goal.",
       longestStreak: 'Longest Streak',
       totalActions: 'Total Actions',
-      aiRecs: 'AI Recommendations',
+      aiRecs: 'A gentle suggestion',
       aiInsights: 'Habit Insights',
       addedToList: 'Added to list',
       addToList: 'Add to my list'
@@ -77,19 +130,19 @@ export const translations = {
       presets: 'Presets Library',
       quickAction: 'Quick action...',
       repeatOn: 'Repeat on:',
-      postponed: 'Postponed for Today',
-      done: 'Done & Dusted',
+      postponed: 'Paused for today',
+      done: 'Completed',
       editTask: 'Edit Task',
       saveTemplate: 'Save as template',
-      skip: 'Skip for today'
+      skip: 'Paused for today'
     },
     pomodoro: {
-      completeTitle: 'Session Complete!',
+      completeTitle: 'This focus session has ended',
       completeSub: 'Amazing work on',
       markDone: 'Mark Goal as Done',
       break: 'Break',
-      goalUpdated: 'Goal Updated!',
-      selectGoal: 'Select a goal first!',
+      goalUpdated: 'Goal Updated.',
+      selectGoal: 'Select a goal first.',
       config: 'Timer Configuration',
       showPresets: 'Show Presets',
       customTimes: 'Custom Times',
@@ -102,15 +155,15 @@ export const translations = {
       today: 'Today',
       noSessions: 'No sessions logged today yet.',
       presets: {
-        reading: 'Reading 📖',
-        learning: 'Learning 🧠',
-        meditation: 'Meditation 🧘',
-        exercise: 'Exercise 🏃'
+        reading: 'Reading',
+        learning: 'Learning',
+        meditation: 'Meditation',
+        exercise: 'Exercise'
       }
     },
     analytics: {
       header: 'Growth & Productivity',
-      subtitle: 'Comprehensive overview of habits, tasks, and focus sessions.',
+      subtitle: 'Overview of habits, tasks, and focus sessions.',
       zenInsights: 'Zen Sensei Insights',
       analyzeNew: 'Analyze New Data',
       totalCompletions: 'Total Completions',
@@ -168,6 +221,59 @@ export const translations = {
       ok: 'Đồng ý',
       submit: 'Gửi góp ý'
     },
+    pricing: {
+      page: {
+        title: 'Chọn nhịp đi phù hợp với bạn',
+        subtitle: 'ZenHabit AI không ép bạn phải hoàn hảo. Chỉ giúp bạn hiểu mình rõ hơn, từng ngày.'
+      },
+      plans: {
+        free: {
+          name: 'Free',
+          tagline: 'Bắt đầu hành trình',
+          description: 'Dành cho những ai đang bắt đầu xây dựng kỷ luật và muốn làm quen với nhịp sống có chủ đích.',
+          features: [
+            'Không giới hạn Habits & Tasks',
+            'Pomodoro Focus Timer đầy đủ',
+            'Thống kê cơ bản & chuỗi ngày (streaks)',
+            'Đồng bộ thiết bị',
+            'AI gợi ý 3 thói quen mỗi ngày',
+            'Zen Sensei Insight hàng tuần'
+          ],
+          cta: 'Tiếp tục với Free'
+        },
+        pro: {
+          name: 'Pro',
+          tagline: 'Rõ ràng và nhất quán',
+          price: '79.000 VNĐ / tháng',
+          description: 'Khi bạn muốn đi sâu hơn, không chỉ “làm”, mà còn hiểu vì sao mình đang làm.',
+          features: [
+            'AI gợi ý thói quen không giới hạn, dựa trên bối cảnh cá nhân',
+            'Zen Sensei Insight mỗi ngày, mỗi tuần và mỗi tháng',
+            'Phân tích sâu về Habit Strength và Deep Work',
+            'Lịch sử và góc nhìn dài hạn',
+            'Trải nghiệm AI nhẹ nhàng, không phán xét'
+          ],
+          cta: 'Đi sâu hơn với Pro'
+        },
+        master: {
+          name: 'Zen Master',
+          tagline: 'Sống có chủ đích',
+          status: 'Sắp ra mắt',
+          description: 'Dành cho những người muốn biến kỷ luật thành một triết lý sống.',
+          features: [
+            'AI Insight theo từng Focus Area',
+            'Reflection sâu hơn, mang tính coaching',
+            'Xuất dữ liệu & nhật ký chiêm nghiệm',
+            'Trải nghiệm tính năng mới sớm nhất'
+          ],
+          cta: 'Đang gieo mầm'
+        }
+      },
+      closing: {
+        title: 'Bạn không bị ép phải trả tiền',
+        message: 'ZenHabit AI vẫn ở đây để đồng hành cùng bạn, dù bạn chọn nhịp đi nào. Khi bạn sẵn sàng đi sâu hơn, Pro sẽ chờ bạn ở đó.'
+      }
+    },
     feedback: {
       header: 'Gửi Góp Ý',
       subtitle: 'Những đề xuất của bạn giúp chúng tôi hoàn thiện ZenHabit AI tốt hơn.',
@@ -179,12 +285,12 @@ export const translations = {
       },
       messageLabel: 'Nội dung',
       messagePlh: 'Hãy chia sẻ suy nghĩ của bạn tại đây...',
-      success: 'Cảm ơn bạn! Góp ý của bạn đã được ghi nhận.',
+      success: 'Cảm ơn bạn. Góp ý của bạn đã được ghi nhận.',
       error: 'Có lỗi xảy ra. Vui lòng thử lại sau.'
     },
     auth: {
       welcome: 'ZenHabit AI',
-      subtitle: 'Hành trình cá nhân hóa của bạn để đạt được sự tập trung và năng suất bắt đầu từ đây. Đăng nhập để đồng bộ dữ liệu.',
+      subtitle: 'Hành trình của bạn bắt đầu từ đây. Đăng nhập để đồng bộ dữ liệu.',
       google: 'Tiếp tục với Google',
       facebook: 'Tiếp tục với Facebook',
       terms: 'Bằng cách tiếp tục, bạn đồng ý với Điều khoản dịch vụ của chúng tôi'
@@ -195,13 +301,13 @@ export const translations = {
       customGoalAdd: 'Sử dụng mục tiêu này'
     },
     dashboard: {
-      welcome: 'Chào mừng trở lại',
+      welcome: 'Hôm nay, bạn đang ở nhịp nào?',
       focusForToday: 'Mục tiêu hôm nay',
       progress: 'Tiến độ hôm nay',
-      progressSub: 'Làm tốt lắm! Bạn sắp đạt được mục tiêu hàng ngày.',
+      progressSub: 'Hãy tiếp tục. Bạn đang tiến dần tới mục tiêu.',
       longestStreak: 'Chuỗi dài nhất',
       totalActions: 'Tổng hoạt động',
-      aiRecs: 'Gợi ý từ AI',
+      aiRecs: 'Một gợi ý nhỏ cho bạn',
       aiInsights: 'Phân tích thói quen',
       addedToList: 'Đã thêm vào danh sách',
       addToList: 'Thêm vào danh sách'
@@ -220,19 +326,19 @@ export const translations = {
       presets: 'Thư viện mẫu',
       quickAction: 'Thêm nhanh công việc...',
       repeatOn: 'Lặp lại vào:',
-      postponed: 'Đã tạm hoãn hôm nay',
+      postponed: 'Bỏ qua hôm nay',
       done: 'Đã hoàn thành',
       editTask: 'Sửa công việc',
       saveTemplate: 'Lưu thành mẫu',
       skip: 'Bỏ qua hôm nay'
     },
     pomodoro: {
-      completeTitle: 'Hoàn thành phiên!',
+      completeTitle: 'Khoảng tập trung đã khép lại',
       completeSub: 'Làm việc tuyệt vời cho',
       markDone: 'Đánh dấu hoàn thành',
       break: 'Nghỉ giải lao',
-      goalUpdated: 'Đã cập nhật mục tiêu!',
-      selectGoal: 'Vui lòng chọn mục tiêu trước!',
+      goalUpdated: 'Đã cập nhật mục tiêu.',
+      selectGoal: 'Vui lòng chọn mục tiêu trước.',
       config: 'Cấu hình thời gian',
       showPresets: 'Hiện các mẫu',
       customTimes: 'Tùy chỉnh thời gian',
@@ -245,15 +351,15 @@ export const translations = {
       today: 'Hôm nay',
       noSessions: 'Chưa có phiên nào được ghi lại hôm nay.',
       presets: {
-        reading: 'Đọc sách 📖',
-        learning: 'Học tập 🧠',
-        meditation: 'Thiền định 🧘',
-        exercise: 'Tập thể dục 🏃'
+        reading: 'Đọc sách',
+        learning: 'Học tập',
+        meditation: 'Thiền định',
+        exercise: 'Tập thể dục'
       }
     },
     analytics: {
       header: 'Tăng trưởng & Năng suất',
-      subtitle: 'Tổng quan toàn diện về thói quen, công việc và các phiên tập trung.',
+      subtitle: 'Tổng quan về thói quen, công việc và các phiên tập trung.',
       zenInsights: 'Phân tích từ Zen Sensei',
       analyzeNew: 'Phân tích dữ liệu mới',
       totalCompletions: 'Tổng hoàn thành',
@@ -269,7 +375,7 @@ export const translations = {
     },
     profile: {
       header: 'Thông tin cá nhân',
-      subtitle: 'Quản lý thông tin cá nhân và cài đặt mục tiêu của bạn.',
+      subtitle: 'Quản lý thông tin cá nhân và cài đặt mục tiêu.',
       signOut: 'Đăng xuất',
       fullName: 'Họ và tên',
       email: 'Địa chỉ Email',
