@@ -2,7 +2,7 @@
 import React from 'react';
 import { Habit, FocusSession, Task, UserProfile, StoredAIInsights } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Calendar as CalendarIcon, Trophy, TrendingUp, Sparkles, Wand2, CheckCircle, ClipboardList, Clock, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, Trophy, TrendingUp, Sparkles, Wand2, CheckCircle, ClipboardList, Clock, RefreshCw, Lock, Heart, X } from 'lucide-react';
 import { getAIInsights } from '../services/geminiService';
 import { useLanguage } from '../LanguageContext';
 import { StorageService } from '../services/storageService';
@@ -12,19 +12,29 @@ interface AnalyticsProps {
   tasks: Task[];
   sessions: FocusSession[];
   profile: UserProfile;
+  onNavigateToPricing?: () => void;
 }
 
 type Period = 'day' | 'week' | 'month';
 
 const INSIGHT_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
-const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile }) => {
+const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile, onNavigateToPricing }) => {
   const [period, setPeriod] = React.useState<Period>('week');
   const [aiInsight, setAiInsight] = React.useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = React.useState(false);
+  const [showInvitation, setShowInvitation] = React.useState<'insights' | 'history' | null>(null);
   const { language, t } = useLanguage();
 
+  const isPro = profile.subscription === 'pro' || profile.subscription === 'master';
+
   const fetchInsight = async (forceRefresh = false) => {
+    // Feature Gate: Only Pro gets Daily/Monthly insights
+    if ((period === 'day' || period === 'month') && !isPro) {
+      setAiInsight(t('pricing.limitations.dailyMonthly'));
+      return;
+    }
+
     setLoadingInsight(true);
     
     if (!forceRefresh) {
@@ -60,11 +70,21 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
     fetchInsight();
   }, [period, language]);
 
+  const handlePeriodChange = (p: Period) => {
+    if ((p === 'day' || p === 'month') && !isPro) {
+      setShowInvitation('insights');
+    }
+    setPeriod(p);
+  };
+
   const getChartData = () => {
     const days = period === 'day' ? 1 : period === 'week' ? 7 : 30;
-    return Array.from({ length: days }, (_, i) => {
+    // Feature Gate: Limited history for free users in Monthly view
+    const displayDays = (period === 'month' && !isPro) ? 14 : days;
+
+    return Array.from({ length: displayDays }, (_, i) => {
       const d = new Date();
-      d.setDate(d.getDate() - (days - 1 - i));
+      d.setDate(d.getDate() - (displayDays - 1 - i));
       const dateStr = d.toISOString().split('T')[0];
       
       const habitCheckmarks = habits.reduce((acc, h) => acc + (h.completedDates.includes(dateStr) ? 1 : 0), 0);
@@ -96,24 +116,58 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
           <h1 className="text-3xl font-bold text-slate-900">{t('analytics.header')}</h1>
           <p className="text-slate-500">{t('analytics.subtitle')}</p>
         </div>
-        <div className="inline-flex p-1 bg-slate-100 rounded-xl">
+        <div className="relative inline-flex p-1 bg-slate-100 rounded-xl">
           {(['day', 'week', 'month'] as Period[]).map((p) => (
             <button
               key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              onClick={() => handlePeriodChange(p)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                 period === p 
                   ? 'bg-white text-indigo-600 shadow-sm' 
                   : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               {p.toUpperCase()}
+              {((p === 'day' || p === 'month') && !isPro) && <Lock size={10} className="text-slate-300" />}
             </button>
           ))}
         </div>
       </header>
 
-      <section className="bg-gradient-to-br from-slate-900 to-indigo-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
+      {/* Zen Invitation Overlay */}
+      {showInvitation && (
+        <div className="bg-white border border-indigo-50 rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-top-4 duration-500 relative overflow-hidden group">
+          <button onClick={() => setShowInvitation(null)} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-500 transition-colors">
+            <X size={20} />
+          </button>
+          <div className="flex flex-col md:flex-row gap-8 items-center">
+            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 shrink-0">
+              <Heart size={32} className="fill-indigo-500/20" />
+            </div>
+            <div className="flex-1 text-center md:text-left space-y-2">
+              <h2 className="text-xl font-bold text-slate-900">
+                {t(`pricing.triggers.${showInvitation}.title`)}
+              </h2>
+              <p className="text-slate-500 italic leading-relaxed max-w-2xl font-light">
+                "{t(`pricing.triggers.${showInvitation}.message`)}"
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 shrink-0 min-w-[160px]">
+              <button 
+                onClick={onNavigateToPricing}
+                className="w-full py-4 px-8 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95"
+              >
+                {t('common.goPro')}
+              </button>
+              <button onClick={() => setShowInvitation(null)} className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">
+                {t('common.later')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <section className="bg-gradient-to-br from-slate-900 to-indigo-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden transition-all duration-700">
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-indigo-400">
@@ -134,8 +188,8 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
           )}
           <button 
             onClick={() => fetchInsight(true)}
-            disabled={loadingInsight}
-            className="mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors disabled:opacity-50"
+            disabled={loadingInsight || (!isPro && period !== 'week')}
+            className={`mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-30 ${isPro ? 'text-white/40 hover:text-white' : 'text-white/20'}`}
           >
             <RefreshCw size={12} className={loadingInsight ? "animate-spin" : ""} /> {t('analytics.analyzeNew')}
           </button>
@@ -173,7 +227,17 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group">
+            {period === 'month' && !isPro && (
+               <div 
+                 onClick={() => setShowInvitation('history')}
+                 className="absolute inset-0 z-10 bg-white/20 backdrop-blur-[1px] flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+               >
+                 <div className="bg-white/80 backdrop-blur-md px-6 py-3 rounded-full border border-indigo-50 shadow-xl text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                   {t('common.goPro')}
+                 </div>
+               </div>
+            )}
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <TrendingUp size={20} className="text-indigo-500" />
@@ -282,12 +346,27 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
         </div>
 
         <div className="space-y-8">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm h-full relative overflow-hidden group">
+            {!isPro && (
+              <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-[2px] flex items-center justify-center p-8 text-center transition-all opacity-0 group-hover:opacity-100">
+                <div className="bg-white p-6 rounded-3xl shadow-xl border border-indigo-50 max-w-[200px]">
+                  <Lock size={24} className="text-indigo-500 mx-auto mb-3" />
+                  <p className="text-xs text-slate-600 mb-4">{t('pricing.limitations.advanced')}</p>
+                  <button 
+                    onClick={onNavigateToPricing}
+                    className="w-full py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                  >
+                    {t('common.goPro')}
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <h3 className="text-lg font-bold text-slate-900 mb-8 flex items-center gap-2">
                <Trophy size={20} className="text-indigo-500" />
                {t('analytics.consistency')}
             </h3>
-            <div className="space-y-8">
+            <div className={`space-y-8 transition-all ${!isPro ? 'filter grayscale opacity-40 select-none' : ''}`}>
                <div className="space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-50 pb-2">{t('analytics.habitStrength')}</p>
                   {habits.length === 0 ? (
@@ -298,14 +377,14 @@ const Analytics: React.FC<AnalyticsProps> = ({ habits, tasks, sessions, profile 
                       const completionsInPeriod = habit.completedDates.length; 
                       const percentage = Math.min(Math.round((completionsInPeriod / dayLimit) * 100), 100);
                       return (
-                        <div key={habit.id} className="group">
+                        <div key={habit.id} className="group/item">
                           <div className="flex justify-between text-xs mb-2">
                             <span className="font-black text-slate-700 truncate max-w-[120px]">{habit.title}</span>
                             <span className="text-indigo-600 font-black">{percentage}%</span>
                           </div>
                           <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden border border-slate-100">
                             <div 
-                              className="bg-indigo-500 h-full rounded-full transition-all duration-1000 group-hover:bg-indigo-600" 
+                              className="bg-indigo-500 h-full rounded-full transition-all duration-1000 group-hover/item:bg-indigo-600" 
                               style={{ width: `${percentage}%` }}
                             />
                           </div>

@@ -9,6 +9,7 @@ export interface UserProfile {
   avatarUrl?: string;
   joinedDate: string;
   onboardingCompleted?: boolean;
+  subscription: 'free' | 'pro' | 'master';
 }
 
 export interface Category {

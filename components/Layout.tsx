@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, CheckCircle2, Timer, BarChart3, Menu, X, User, Globe, MessageSquarePlus, Heart } from 'lucide-react';
+import { LayoutDashboard, CheckCircle2, Timer, BarChart3, Menu, X, User, Globe, MessageSquarePlus, Heart, Leaf } from 'lucide-react';
 import { ViewType, UserProfile } from '../types';
 import { useLanguage } from '../LanguageContext';
 
@@ -22,6 +22,16 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
     { id: 'analytics' as ViewType, label: t('nav.analytics'), icon: BarChart3 },
     { id: 'profile' as ViewType, label: t('nav.profile'), icon: User },
   ];
+
+  const getPlanLabel = () => {
+    switch (userProfile.subscription) {
+      case 'pro': return t('pricing.plans.pro.name');
+      case 'master': return t('pricing.plans.master.name');
+      default: return t('pricing.plans.free.name');
+    }
+  };
+
+  const isPro = userProfile.subscription === 'pro' || userProfile.subscription === 'master';
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -92,8 +102,9 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-bold text-slate-800 truncate">{userProfile.name}</p>
-                  <p className="text-[10px] text-indigo-500 font-black uppercase tracking-tighter flex items-center gap-1">
-                    <Heart size={10} className="fill-indigo-500" /> {t('common.proPlan')}
+                  <p className={`text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 ${isPro ? 'text-indigo-500' : 'text-slate-400'}`}>
+                    {isPro ? <Heart size={10} className="fill-indigo-500" /> : <Leaf size={10} className="fill-slate-400" />} 
+                    {getPlanLabel()}
                   </p>
                 </div>
               </div>

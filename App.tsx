@@ -130,12 +130,21 @@ const App: React.FC = () => {
       customGoalOptions: onboardingData.customGoalOptions || [],
       hiddenStandardGoals: onboardingData.hiddenStandardGoals || [],
       joinedDate: onboardingData.joinedDate || new Date().toISOString(),
-      onboardingCompleted: true
+      onboardingCompleted: true,
+      subscription: 'free' // Default to free plan
     };
     
     setProfile(newProfile);
     await StorageService.saveProfile(userId, newProfile);
     setView('dashboard');
+  };
+
+  const handleUpdateSubscription = async (plan: 'free' | 'pro' | 'master') => {
+    if (!profile) return;
+    const userId = StorageService.getUserId();
+    const updatedProfile = { ...profile, subscription: plan };
+    setProfile(updatedProfile);
+    await StorageService.saveProfile(userId, updatedProfile);
   };
 
   const addHabit = async (title: string, category: string, reminderTime?: string) => {
@@ -266,7 +275,7 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch(view) {
-      case 'dashboard': return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
+      case 'dashboard': return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
       case 'habits': return <HabitManager 
         habits={habits} 
         tasks={tasks} 
@@ -285,11 +294,11 @@ const App: React.FC = () => {
         onDeleteTask={deleteTask}
       />;
       case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} onLogTime={() => {}} onMarkComplete={() => {}} />;
-      case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} />;
+      case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} onNavigateToPricing={() => setView('pricing')} />;
       case 'profile': return <Profile profile={profile} onSave={(p) => setProfile(p)} onLogout={handleLogout} />;
       case 'feedback': return <Feedback />;
-      case 'pricing': return <Pricing />;
-      default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
+      case 'pricing': return <Pricing onSelectPlan={handleUpdateSubscription} currentPlan={profile.subscription} />;
+      default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
     }
   };
 

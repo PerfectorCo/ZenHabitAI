@@ -108,6 +108,7 @@ export const StorageService = {
       }
       if (!parsed.customGoalOptions) parsed.customGoalOptions = [];
       if (!parsed.hiddenStandardGoals) parsed.hiddenStandardGoals = [];
+      if (!parsed.subscription) parsed.subscription = 'free'; // Migration
       return parsed;
     }
 
@@ -119,7 +120,8 @@ export const StorageService = {
       customGoalOptions: [],
       hiddenStandardGoals: [],
       joinedDate: new Date().toISOString(),
-      onboardingCompleted: false
+      onboardingCompleted: false,
+      subscription: 'free'
     };
   },
 

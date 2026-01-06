@@ -4,7 +4,7 @@ import { Habit, Task, Recommendation, UserProfile, FocusSession } from "../types
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const getAIRecommendations = async (habits: Habit[], profile: UserProfile, lang: 'en' | 'vi' = 'en'): Promise<Recommendation[]> => {
+export const getAIRecommendations = async (habits: Habit[], profile: UserProfile, lang: 'en' | 'vi' = 'en'): Promise<Recommendation[] | { error: string }> => {
   const habitsSummary = habits.map(h => ({
     title: h.title,
     streak: h.streak,
@@ -79,8 +79,11 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
     });
 
     return JSON.parse(response.text || "[]");
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI Error:", error);
+    if (error?.message?.includes('429') || error?.status === 429) {
+      return { error: 'quota' };
+    }
     return [];
   }
 };
@@ -134,7 +137,10 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
     // Clean any residual symbols
     result = result.replace(/[*_#\-•]/g, '').trim();
     return result;
-  } catch (e) {
+  } catch (error: any) {
+    if (error?.message?.includes('429') || error?.status === 429) {
+      return lang === 'vi' ? "Zen Sensei đang chiêm nghiệm. Hãy quay lại sau một lát nhé." : "The Zen Sensei is reflecting. Please come back in a little while.";
+    }
     if (lang === 'vi') {
       return "Mỗi ngày là một khởi đầu mới. Bạn có thể bắt đầu lại bất cứ khi nào sẵn sàng.";
     }

@@ -23,9 +23,38 @@ export const translations = {
       minutes: 'Minutes',
       status: 'Status',
       ok: 'OK',
-      submit: 'Submit'
+      submit: 'Submit',
+      goPro: 'Go Deeper',
+      later: 'Maybe later'
+    },
+    errors: {
+      quotaExceeded: 'The Zen Sensei is reflecting. Please come back in a little while.',
+      apiError: 'The connection is momentarily clouded. Let’s try again shortly.'
     },
     pricing: {
+      triggers: {
+        refresh: {
+          title: 'Ready to go a little deeper?',
+          message: 'ZenHabit Pro lets you refresh your habit guidance anytime — shaped by your own rhythm and progress. Not more effort. Just clearer direction.'
+        },
+        insights: {
+          title: 'A Daily Presence',
+          message: 'The Zen Sensei visits you once a week. With Pro, that presence becomes daily — observing gently, reminding you to return to your path.'
+        },
+        history: {
+          title: 'The Full Picture',
+          message: 'You’re seeing the surface. ZenHabit Pro reveals the full picture — so you’re not just busy, but truly progressing. Self-understanding is the first discipline.'
+        },
+        positive: {
+          title: 'Carry this rhythm forward',
+          message: 'Today, you moved with intention. ZenHabit Pro helps you understand why things worked — so progress becomes consistent, not accidental.'
+        }
+      },
+      limitations: {
+        refresh: 'Refreshing insights is a Pro feature. When you are ready to go deeper, Pro will be here.',
+        dailyMonthly: 'Daily and Monthly reflections are available for those on the Pro path.',
+        advanced: 'Deeper analysis of habit strength is waiting for you in Pro.'
+      },
       page: {
         title: 'Choose the rhythm that fits you',
         subtitle: 'ZenHabit AI doesn’t push you to be perfect. It simply helps you understand yourself, one day at a time.'
@@ -219,9 +248,38 @@ export const translations = {
       minutes: 'Phút',
       status: 'Trạng thái',
       ok: 'Đồng ý',
-      submit: 'Gửi góp ý'
+      submit: 'Gửi góp ý',
+      goPro: 'Đi sâu hơn',
+      later: 'Để sau'
+    },
+    errors: {
+      quotaExceeded: 'Zen Sensei đang chiêm nghiệm. Hãy quay lại sau một lát nhé.',
+      apiError: 'Kết nối tạm thời bị gián đoạn. Chúng ta sẽ thử lại sớm thôi.'
     },
     pricing: {
+      triggers: {
+        refresh: {
+          title: 'Bạn đã sẵn sàng đi sâu hơn?',
+          message: 'ZenHabit Pro cho phép bạn làm mới gợi ý bất cứ lúc nào — dựa trên chính hành trình và nhịp sống của bạn. Không phải thêm việc. Chỉ là đi đúng hướng hơn.'
+        },
+        insights: {
+          title: 'Sự hiện diện mỗi ngày',
+          message: 'Zen Sensei chỉ ghé thăm bạn mỗi tuần. Với Pro, người thầy ấy sẽ ở đây mỗi ngày — lắng nghe, quan sát và nhắc bạn quay về đúng nhịp.'
+        },
+        history: {
+          title: 'Bức tranh toàn cảnh',
+          message: 'Bạn đang nhìn thấy bề mặt. ZenHabit Pro mở ra toàn bộ bức tranh — để bạn không chỉ bận rộn, mà thực sự tiến bộ. Hiểu mình là bước đầu của kỷ luật.'
+        },
+        positive: {
+          title: 'Giữ lại nhịp này',
+          message: 'Hôm nay bạn đã đi rất vững. ZenHabit Pro giúp bạn hiểu vì sao bạn đang làm tốt — để không chỉ là may mắn, mà là sự nhất quán.'
+        }
+      },
+      limitations: {
+        refresh: 'Làm mới gợi ý là tính năng dành cho gói Pro. Khi bạn sẵn sàng đi sâu hơn, Pro sẽ chờ bạn ở đó.',
+        dailyMonthly: 'Các phân tích hàng ngày và hàng tháng dành cho những ai chọn hành trình Pro.',
+        advanced: 'Phân tích sâu về sức mạnh thói quen đang chờ bạn tại gói Pro.'
+      },
       page: {
         title: 'Chọn nhịp đi phù hợp với bạn',
         subtitle: 'ZenHabit AI không ép bạn phải hoàn hảo. Chỉ giúp bạn hiểu mình rõ hơn, từng ngày.'
