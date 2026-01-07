@@ -1,27 +1,46 @@
 
 import React from 'react';
-// Add Sparkles to the lucide-react imports
-import { ArrowLeft, ShieldCheck, CreditCard, Mail, Wallet, Smartphone, Globe, Loader2, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, CreditCard, Mail, Wallet, Globe, Check, Sparkles } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
+import { getCachedPaymentMethods, UserContext, PaymentMethodConfig } from '../services/paymentMethodService';
+import { StorageService } from '../services/storageService';
 
 interface CheckoutProps {
   onConfirm: () => void;
   onCancel: () => void;
   plan: 'pro' | 'master';
   userEmail: string;
+  userContext?: Partial<UserContext>;
 }
 
 type BillingCycle = 'monthly' | 'yearly';
-type PaymentMethod = 'momo' | 'zalopay' | 'card' | 'applepay' | 'googlepay';
+type PaymentMethod = 'stripe' | 'momo' | 'zalopay';
 
-const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmail }) => {
+const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmail, userContext }) => {
   const { t, language } = useLanguage();
+  const isVi = language === 'vi';
+
+  // Detect user context from available information
+  const detectedContext = React.useMemo<UserContext>(() => ({
+    platform: 'web',
+    country: userContext?.country || (isVi ? 'VN' : 'US'),
+    language: language,
+    profession: userContext?.profession,
+    hasInternationalCard: userContext?.hasInternationalCard,
+    device: userContext?.device || (typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop')
+  }), [isVi, language, userContext?.country, userContext?.profession, userContext?.hasInternationalCard, userContext?.device]);
+
+  // Get cached payment methods (only computed once when component mounts or context changes)
+  const userId = StorageService.getUserId();
+  const paymentSelection = React.useMemo(
+    () => getCachedPaymentMethods(userId, detectedContext),
+    [userId, detectedContext]
+  );
+
   const [cycle, setCycle] = React.useState<BillingCycle>('monthly');
-  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>(paymentSelection.primaryMethod.id);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [processStep, setProcessStep] = React.useState(0);
-
-  const isVi = language === 'vi';
 
   const prices = {
     monthly: { vi: '79.000đ', en: '$3.99' },
@@ -44,17 +63,54 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
     }, 2500);
   };
 
-  const paymentOptions = isVi 
-    ? [
-        { id: 'momo' as PaymentMethod, label: 'MoMo', icon: Wallet, color: 'text-pink-500 bg-pink-50' },
-        { id: 'zalopay' as PaymentMethod, label: 'ZaloPay', icon: Smartphone, color: 'text-blue-500 bg-blue-50' },
-        { id: 'card' as PaymentMethod, label: 'Thẻ ATM / Visa / Mastercard', icon: CreditCard, color: 'text-slate-600 bg-slate-50' }
-      ]
-    : [
-        { id: 'card' as PaymentMethod, label: 'Credit / Debit Card', icon: CreditCard, color: 'text-slate-600 bg-slate-50' },
-        { id: 'applepay' as PaymentMethod, label: 'Apple Pay', icon: Globe, color: 'text-black bg-slate-100' },
-        { id: 'googlepay' as PaymentMethod, label: 'Google Pay', icon: Smartphone, color: 'text-blue-600 bg-blue-50' }
-      ];
+  const getPaymentIcon = (id: PaymentMethod) => {
+    switch (id) {
+      case 'momo':
+      case 'zalopay':
+        return Wallet;
+      case 'stripe':
+        return CreditCard;
+      default:
+        return CreditCard;
+    }
+  };
+
+  const getPaymentColor = (id: PaymentMethod) => {
+    switch (id) {
+      case 'momo':
+        return 'text-pink-500 bg-pink-50';
+      case 'zalopay':
+        return 'text-blue-500 bg-blue-50';
+      case 'stripe':
+        return 'text-slate-600 bg-slate-50';
+      default:
+        return 'text-slate-600 bg-slate-50';
+    }
+  };
+
+  const paymentOptions: Array<{
+    id: PaymentMethod;
+    config: PaymentMethodConfig;
+    icon: typeof Wallet;
+    color: string;
+  }> = [
+    {
+      id: paymentSelection.primaryMethod.id,
+      config: paymentSelection.primaryMethod,
+      icon: getPaymentIcon(paymentSelection.primaryMethod.id),
+      color: getPaymentColor(paymentSelection.primaryMethod.id)
+    },
+    ...(paymentSelection.secondaryMethod
+      ? [
+          {
+            id: paymentSelection.secondaryMethod.id,
+            config: paymentSelection.secondaryMethod,
+            icon: getPaymentIcon(paymentSelection.secondaryMethod.id),
+            color: getPaymentColor(paymentSelection.secondaryMethod.id)
+          }
+        ]
+      : [])
+  ];
 
   if (isProcessing) {
     return (
@@ -88,8 +144,8 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
             {isVi ? 'Xác nhận đăng ký' : 'Confirm Subscription'}
           </h1>
           <p className="text-slate-500 italic font-light leading-relaxed">
-            {isVi 
-              ? 'Tham gia cùng hàng ngàn người dùng đang xây dựng kỷ luật tự thân.' 
+            {isVi
+              ? 'Tham gia cùng hàng ngàn người dùng đang xây dựng kỷ luật tự thân.'
               : 'Join thousands of users building sustainable self-discipline.'}
           </p>
         </header>
@@ -114,25 +170,32 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
             {paymentOptions.map((opt) => {
               const Icon = opt.icon;
               const isActive = paymentMethod === opt.id;
+              const label = opt.config.label[language];
+              const toneHint = opt.config.toneHint[language];
               return (
                 <button
                   key={opt.id}
                   onClick={() => setPaymentMethod(opt.id)}
-                  className={`flex items-center justify-between p-5 rounded-[1.5rem] border-2 transition-all ${
-                    isActive 
-                      ? 'border-indigo-600 bg-white shadow-xl shadow-indigo-100/50 -translate-y-1' 
+                  className={`flex flex-col p-5 rounded-[1.5rem] border-2 transition-all text-left ${
+                    isActive
+                      ? 'border-indigo-600 bg-white shadow-xl shadow-indigo-100/50 -translate-y-1'
                       : 'border-slate-100 bg-white hover:border-slate-200'
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${opt.color}`}>
-                      <Icon size={24} />
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${opt.color}`}>
+                        <Icon size={24} />
+                      </div>
+                      <span className="font-bold text-slate-700">{label}</span>
                     </div>
-                    <span className="font-bold text-slate-700">{opt.label}</span>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isActive ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200'}`}>
+                      {isActive && <Check size={14} strokeWidth={4} />}
+                    </div>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isActive ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200'}`}>
-                    {isActive && <Check size={14} strokeWidth={4} />}
-                  </div>
+                  {toneHint && (
+                    <p className="text-xs text-slate-400 mt-2 ml-16">{toneHint}</p>
+                  )}
                 </button>
               );
             })}
@@ -152,7 +215,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
       <div className="lg:col-span-5">
         <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl sticky top-24 space-y-10 overflow-hidden border border-white/5">
           <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
-          
+
           <div className="space-y-6">
             <h2 className="text-sm font-black uppercase tracking-[0.3em] text-white/40 border-b border-white/5 pb-6">
               {isVi ? 'Chi tiết đơn hàng' : 'Order Details'}
@@ -205,7 +268,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
                 <span className="text-white/60 text-sm font-bold">{isVi ? 'Thành tiền' : 'Grand Total'}</span>
                 <span className="text-3xl font-black">{getPrice()}</span>
               </div>
-              
+
               <div className="space-y-3">
                 <button
                   onClick={handlePayNow}
@@ -215,8 +278,8 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
                   {isVi ? 'Thanh toán ngay' : 'Subscribe Now'}
                 </button>
                 <p className="text-[10px] text-white/30 italic text-center leading-relaxed">
-                  {isVi 
-                    ? 'Bằng cách nhấn thanh toán, bạn đồng ý với Điều khoản dịch vụ. Có thể hủy bất cứ lúc nào.' 
+                  {isVi
+                    ? 'Bằng cách nhấn thanh toán, bạn đồng ý với Điều khoản dịch vụ. Có thể hủy bất cứ lúc nào.'
                     : 'By subscribing, you agree to our Terms of Service. Cancel at any moment in settings.'}
                 </p>
               </div>

@@ -16,6 +16,41 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   }
 }
 
+// Helper functions to convert between camelCase (TypeScript) and snake_case (SQL)
+const toSnakeCase = (str: string): string => {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+};
+
+const camelToSnake = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(camelToSnake);
+  if (typeof obj !== 'object') return obj;
+
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const snakeKey = toSnakeCase(key);
+    result[snakeKey] = camelToSnake(value);
+  }
+  return result;
+};
+
+const snakeToCamel = (str: string): string => {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+};
+
+const snakeToCamelObj = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(snakeToCamelObj);
+  if (typeof obj !== 'object') return obj;
+
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = snakeToCamel(key);
+    result[camelKey] = snakeToCamelObj(value);
+  }
+  return result;
+};
+
 const STORAGE_KEYS = {
   SESSION: 'zenhabit_db_session',
   USER_ID: 'zenhabit_db_user_id',
@@ -69,13 +104,13 @@ export const StorageService = {
     if (!current.includes(categoryName)) {
       const updated = [...current, categoryName];
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
-      
+
       if (supabase) {
         try {
-          await supabase.from('categories').upsert({ 
-            id: `${userId}-${categoryName}`, 
-            user_id: userId, 
-            name: categoryName 
+          await supabase.from('categories').upsert({
+            id: `${userId}-${categoryName}`,
+            user_id: userId,
+            name: categoryName
           });
         } catch (e) {
           console.error("Supabase category save failed", e);
@@ -93,12 +128,15 @@ export const StorageService = {
           .select('*')
           .eq('id', userId)
           .single();
-        if (!error && data) return data;
+        if (!error && data) {
+          // Convert snake_case to camelCase
+          return snakeToCamelObj(data) as UserProfile;
+        }
       } catch (e) {
         console.warn("Supabase profile fetch failed, using local storage", e);
       }
     }
-    
+
     const local = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (local) {
       const parsed = JSON.parse(local);
@@ -129,7 +167,9 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
     if (supabase) {
       try {
-        await supabase.from('profiles').upsert({ id: userId, ...profile });
+        // Convert camelCase to snake_case for Supabase
+        const dbProfile = camelToSnake({ id: userId, ...profile });
+        await supabase.from('profiles').upsert(dbProfile);
       } catch (e) {
         console.error("Supabase profile save failed", e);
       }
@@ -144,7 +184,10 @@ export const StorageService = {
           .from('habits')
           .select('*')
           .eq('user_id', userId);
-        if (!error && data) return data;
+        if (!error && data) {
+          // Convert snake_case to camelCase
+          return data.map(snakeToCamelObj) as Habit[];
+        }
       } catch (e) {
         console.warn("Supabase habits fetch failed", e);
       }
@@ -162,7 +205,9 @@ export const StorageService = {
 
     if (supabase) {
       try {
-        await supabase.from('habits').upsert({ user_id: userId, ...habit });
+        // Convert camelCase to snake_case for Supabase
+        const dbHabit = camelToSnake({ user_id: userId, ...habit });
+        await supabase.from('habits').upsert(dbHabit);
       } catch (e) {
         console.error("Supabase habit save failed", e);
       }
@@ -189,7 +234,10 @@ export const StorageService = {
           .from('tasks')
           .select('*')
           .eq('user_id', userId);
-        if (!error && data) return data;
+        if (!error && data) {
+          // Convert snake_case to camelCase
+          return data.map(snakeToCamelObj) as Task[];
+        }
       } catch (e) {
         console.warn("Supabase tasks fetch failed", e);
       }
@@ -207,7 +255,9 @@ export const StorageService = {
 
     if (supabase) {
       try {
-        await supabase.from('tasks').upsert({ user_id: userId, ...task });
+        // Convert camelCase to snake_case for Supabase
+        const dbTask = camelToSnake({ user_id: userId, ...task });
+        await supabase.from('tasks').upsert(dbTask);
       } catch (e) {
         console.error("Supabase task save failed", e);
       }
@@ -231,7 +281,10 @@ export const StorageService = {
     if (supabase) {
       try {
         const { data, error } = await supabase.from('task_templates').select('*').eq('user_id', userId);
-        if (!error && data) return data;
+        if (!error && data) {
+          // Convert snake_case to camelCase
+          return data.map(snakeToCamelObj) as TaskTemplate[];
+        }
       } catch (e) {
         console.warn("Supabase templates fetch failed", e);
       }
@@ -248,7 +301,9 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(local));
     if (supabase) {
       try {
-        await supabase.from('task_templates').upsert({ user_id: userId, ...template });
+        // Convert camelCase to snake_case for Supabase
+        const dbTemplate = camelToSnake({ user_id: userId, ...template });
+        await supabase.from('task_templates').upsert(dbTemplate);
       } catch (e) {
         console.error("Supabase template save failed", e);
       }
@@ -272,7 +327,10 @@ export const StorageService = {
     if (supabase) {
       try {
         const { data, error } = await supabase.from('focus_sessions').select('*').eq('user_id', userId).order('timestamp', { ascending: false });
-        if (!error && data) return data;
+        if (!error && data) {
+          // Convert snake_case to camelCase
+          return data.map(snakeToCamelObj) as FocusSession[];
+        }
       } catch (e) {
         console.warn("Supabase focus sessions fetch failed", e);
       }
@@ -287,7 +345,9 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.FOCUS_SESSIONS, JSON.stringify(local));
     if (supabase) {
       try {
-        await supabase.from('focus_sessions').upsert({ user_id: userId, ...session });
+        // Convert camelCase to snake_case for Supabase
+        const dbSession = camelToSnake({ user_id: userId, ...session });
+        await supabase.from('focus_sessions').upsert(dbSession);
       } catch (e) {
         console.error("Supabase focus session save failed", e);
       }
@@ -300,7 +360,13 @@ export const StorageService = {
     local.push(feedback);
     localStorage.setItem(STORAGE_KEYS.FEEDBACK, JSON.stringify(local));
     if (supabase) {
-      try { await supabase.from('feedback').insert(feedback); } catch (e) { console.error("Supabase feedback save failed", e); }
+      try {
+        // Convert camelCase to snake_case for Supabase
+        const dbFeedback = camelToSnake(feedback);
+        await supabase.from('feedback').insert(dbFeedback);
+      } catch (e) {
+        console.error("Supabase feedback save failed", e);
+      }
     }
   },
 

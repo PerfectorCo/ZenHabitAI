@@ -27,7 +27,7 @@ const App: React.FC = () => {
   const [taskTemplates, setTaskTemplates] = React.useState<TaskTemplate[]>([]);
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
   const [pendingPlan, setPendingPlan] = React.useState<'pro' | 'master' | null>(null);
-  
+
   const { t, language } = useLanguage();
 
   // Daily Reset Logic
@@ -65,7 +65,7 @@ const App: React.FC = () => {
 
       setIsLoading(true);
       const userId = StorageService.getUserId();
-      
+
       try {
         const [fetchedProfile, fetchedHabits, fetchedTasks, fetchedSessions, fetchedCategories, fetchedTemplates] = await Promise.all([
           StorageService.getProfile(userId),
@@ -93,7 +93,7 @@ const App: React.FC = () => {
         setCategories(fetchedCategories);
         setTaskTemplates(templates);
         setFocusSessions(fetchedSessions);
-        
+
         // If profile is default or lacks onboarding, switch view to onboarding
         if (!fetchedProfile.onboardingCompleted) {
           setView('onboarding');
@@ -136,7 +136,7 @@ const App: React.FC = () => {
       onboardingCompleted: true,
       subscription: 'free' // Default to free plan
     };
-    
+
     setProfile(newProfile);
     await StorageService.saveProfile(userId, newProfile);
     setView('dashboard');
@@ -187,14 +187,14 @@ const App: React.FC = () => {
   };
 
   const addQuickTask = async (title: string, isRecurring: boolean = false, repeatDays?: number[]) => {
-    const newTask: Task = { 
-      id: Date.now().toString(), 
-      title, 
-      completed: false, 
+    const newTask: Task = {
+      id: Date.now().toString(),
+      title,
+      completed: false,
       completedDates: [],
       skippedDates: [],
       repeatDays: isRecurring ? (repeatDays || [0,1,2,3,4,5,6]) : undefined,
-      timeSpent: 0, 
+      timeSpent: 0,
       createdAt: new Date().toISOString(),
       isRecurring
     };
@@ -238,7 +238,7 @@ const App: React.FC = () => {
       if (t.id === id) {
         const isCurrentlyCompleted = !t.completed;
         const currentDates = t.completedDates || [];
-        const newDates = isCurrentlyCompleted 
+        const newDates = isCurrentlyCompleted
           ? Array.from(new Set([...currentDates, todayStr]))
           : currentDates.filter(d => d !== todayStr);
         return { ...t, completed: isCurrentlyCompleted, completedDates: newDates };
@@ -294,19 +294,19 @@ const App: React.FC = () => {
   const renderView = () => {
     switch(view) {
       case 'dashboard': return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
-      case 'habits': return <HabitManager 
-        habits={habits} 
-        tasks={tasks} 
+      case 'habits': return <HabitManager
+        habits={habits}
+        tasks={tasks}
         categories={categories}
         templates={taskTemplates}
-        onAddHabit={addHabit} 
-        onToggleHabit={(id) => {}} 
+        onAddHabit={addHabit}
+        onToggleHabit={(id) => {}}
         onAddLevelTask={addQuickTask}
         onUpdateTask={handleUpdateTask}
         onAddFromTemplate={addTemplateToTasks}
         onSaveTemplate={saveTaskAsTemplate}
         onDeleteTemplate={deleteTemplate}
-        onDeleteHabit={(id) => {}} 
+        onDeleteHabit={(id) => {}}
         onToggleTask={toggleTaskComplete}
         onSkipTask={handleSkipTask}
         onDeleteTask={deleteTask}
@@ -316,7 +316,20 @@ const App: React.FC = () => {
       case 'profile': return <Profile profile={profile} onSave={(p) => setProfile(p)} onLogout={handleLogout} />;
       case 'feedback': return <Feedback />;
       case 'pricing': return <Pricing onSelectPlan={handleUpdateSubscription} currentPlan={profile.subscription} />;
-      case 'checkout': return <Checkout userEmail={profile.email} plan={pendingPlan || 'pro'} onConfirm={finalizeSubscription} onCancel={() => { setView('pricing'); setPendingPlan(null); }} />;
+      case 'checkout': return <Checkout
+        userEmail={profile.email}
+        plan={pendingPlan || 'pro'}
+        onConfirm={finalizeSubscription}
+        onCancel={() => { setView('pricing'); setPendingPlan(null); }}
+        // For testing different payment methods, uncomment and modify:
+        // userContext={{
+        //   country: 'VN', // 'VN' | 'US' | etc.
+        //   language: 'vi', // 'vi' | 'en'
+        //   profession: 'dev', // 'dev' | 'knowledge_worker' | 'general_user'
+        //   hasInternationalCard: 'true', // 'true' | 'false' | 'unknown'
+        //   device: 'desktop' // 'desktop' | 'mobile'
+        // }}
+      />;
       case 'payment-success': return <PaymentSuccess onContinue={() => setView('dashboard')} />;
       default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
     }
