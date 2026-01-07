@@ -15,6 +15,7 @@ import PaymentSuccess from './components/PaymentSuccess';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
 import { StorageService } from './services/storageService';
 import { useLanguage } from './LanguageContext';
+import { supabase } from './services/supabaseClient';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = React.useState<boolean>(StorageService.getSession());
@@ -27,8 +28,67 @@ const App: React.FC = () => {
   const [taskTemplates, setTaskTemplates] = React.useState<TaskTemplate[]>([]);
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
   const [pendingPlan, setPendingPlan] = React.useState<'pro' | 'master' | null>(null);
+  const [showMergeScreen, setShowMergeScreen] = React.useState<boolean>(false);
 
   const { t, language } = useLanguage();
+
+  // Handle Supabase auth session
+  React.useEffect(() => {
+    const initAuth = async () => {
+      if (!supabase) {
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+
+      if (session) {
+        const newUserId = session.user.id;
+        const previousUserId = StorageService.getUserId();
+        if (previousUserId && previousUserId !== newUserId) {
+          StorageService.mergeGuestIntoUser(previousUserId, newUserId)
+            .catch(err => console.error('Deferred guest merge failed', err));
+        }
+        StorageService.setSession(true, newUserId);
+        setIsAuthenticated(true);
+      }
+
+      setIsLoading(false);
+    };
+
+    const { data: listener } = supabase?.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const newUserId = session.user.id;
+        const previousUserId = StorageService.getUserId();
+        if (previousUserId && previousUserId !== newUserId) {
+          StorageService.mergeGuestIntoUser(previousUserId, newUserId)
+            .catch(err => console.error('Deferred guest merge failed', err));
+        }
+        StorageService.setSession(true, newUserId);
+        setIsAuthenticated(true);
+        setView('dashboard');
+      } else if (event === 'SIGNED_OUT') {
+        StorageService.clearAll();
+        setIsAuthenticated(false);
+        setProfile(null);
+        setView('dashboard');
+      }
+    }) || { data: null };
+
+    initAuth();
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    if (StorageService.consumeLoginMergeScreenFlag()) {
+      setShowMergeScreen(true);
+    }
+  }, [isAuthenticated]);
 
   // Daily Reset Logic
   const checkAndResetDailyTasks = async (currentTasks: Task[]) => {
@@ -272,8 +332,8 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    return <Auth onLogin={(provider, email) => {
-      StorageService.setSession(true, `user-${Date.now()}`);
+    return <Auth onLoginSuccess={(userId) => {
+      StorageService.setSession(true, userId);
       setIsAuthenticated(true);
     }} />;
   }
@@ -290,6 +350,32 @@ const App: React.FC = () => {
       </div>
     );
   }
+
+  const isVi = language === 'vi';
+  const mergeCopy = {
+    title: {
+      vi: 'Tiếp tục hành trình của bạn',
+      en: 'Continue your journey'
+    },
+    message: {
+      vi: 'Tiến trình, thói quen và nhiệm vụ gần đây của bạn đã được lưu vào tài khoản này. Bạn có thể tiếp tục như bình thường.',
+      en: 'Your recent progress, habits, and tasks are now saved to this account. You can continue as usual.'
+    },
+    primaryAction: {
+      label: {
+        vi: 'Tiếp tục',
+        en: 'Continue'
+      },
+      action: 'continue' as const
+    },
+    secondaryAction: {
+      label: {
+        vi: 'Quay lại màn hình trước',
+        en: 'Go back to previous screen'
+      },
+      action: 'go_back' as const
+    }
+  };
 
   const renderView = () => {
     switch(view) {
@@ -338,6 +424,36 @@ const App: React.FC = () => {
   return (
     <Layout currentView={view} setView={setView} userProfile={profile}>
       {renderView()}
+      {showMergeScreen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <div className="max-w-md w-full mx-4 rounded-3xl bg-white shadow-xl border border-slate-100 p-6 space-y-4">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-slate-900">
+                {isVi ? mergeCopy.title.vi : mergeCopy.title.en}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {isVi ? mergeCopy.message.vi : mergeCopy.message.en}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowMergeScreen(false)}
+                className="w-full inline-flex items-center justify-center rounded-2xl bg-slate-900 text-white text-sm font-medium py-2.5 px-4 hover:bg-slate-800 transition-colors"
+              >
+                {isVi ? mergeCopy.primaryAction.label.vi : mergeCopy.primaryAction.label.en}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMergeScreen(false)}
+                className="w-full inline-flex items-center justify-center rounded-2xl border border-slate-200 text-slate-700 text-sm font-medium py-2.5 px-4 hover:bg-slate-50 transition-colors"
+              >
+                {isVi ? mergeCopy.secondaryAction.label.vi : mergeCopy.secondaryAction.label.en}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

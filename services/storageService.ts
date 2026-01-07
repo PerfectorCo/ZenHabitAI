@@ -65,6 +65,27 @@ const STORAGE_KEYS = {
   AI_INSIGHTS: 'zenhabit_db_ai_insights'
 };
 
+const LOGIN_SUGGESTION_SESSION_KEY_PREFIX = 'zenhabit_login_suggestion_';
+const LOGIN_MERGE_DONE_PREFIX = 'zenhabit_login_merged_';
+const LOGIN_MERGE_SCREEN_FLAG_KEY = 'zenhabit_login_merge_screen';
+
+const getPlatformFromUserAgent = (): 'desktop' | 'mobile' => {
+  if (typeof navigator === 'undefined') return 'desktop';
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return isMobile ? 'mobile' : 'desktop';
+};
+
+const unionById = <T extends { id: string }>(...lists: T[][]): T[] => {
+  const map = new Map<string, T>();
+  for (const list of lists) {
+    for (const item of list) {
+      if (!item || !item.id) continue;
+      map.set(item.id, item);
+    }
+  }
+  return Array.from(map.values());
+};
+
 export const StorageService = {
   // Auth Operations
   getSession: (): boolean => {
@@ -390,5 +411,194 @@ export const StorageService = {
     const updated = current.filter(i => i.period !== insight.period);
     updated.push(insight);
     localStorage.setItem(STORAGE_KEYS.AI_INSIGHTS, JSON.stringify(updated));
+  },
+
+  // Login suggestion decision cached per (language, platform) and browser session
+  getLoginSuggestionDecision: (language: string, platform?: 'desktop' | 'mobile'): boolean => {
+    const resolvedPlatform = platform || getPlatformFromUserAgent();
+    const key = `${LOGIN_SUGGESTION_SESSION_KEY_PREFIX}${language}_${resolvedPlatform}`;
+
+    try {
+      const cached = sessionStorage.getItem(key);
+      if (cached !== null) return cached === 'true';
+    } catch {
+      // Ignore sessionStorage access issues and fall back to default
+    }
+
+    // For now, always suggest login once per (language, platform, session)
+    const decision = true;
+
+    try {
+      sessionStorage.setItem(key, String(decision));
+    } catch {
+      // Ignore sessionStorage write failures
+    }
+
+    return decision;
+  },
+
+  // One-time guest → account merge, safe to retry and invisible to the user
+  mergeGuestIntoUser: async (guestUserId: string, authenticatedUserId: string): Promise<void> => {
+    if (!authenticatedUserId || guestUserId === authenticatedUserId) return;
+
+    const mergeDoneKey = `${LOGIN_MERGE_DONE_PREFIX}${authenticatedUserId}`;
+    if (localStorage.getItem(mergeDoneKey) === 'true') return;
+
+    // Detect if there is any local guest data worth merging
+    const localHabits: Habit[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.HABITS) || '[]');
+    const localTasks: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
+    const localSessions: FocusSession[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.FOCUS_SESSIONS) || '[]');
+    const localTemplates: TaskTemplate[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEMPLATES) || '[]');
+    const localProfileRaw = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    const localProfile: UserProfile | null = localProfileRaw ? JSON.parse(localProfileRaw) : null;
+
+    const hasLocalData =
+      localHabits.length > 0 ||
+      localTasks.length > 0 ||
+      localSessions.length > 0 ||
+      localTemplates.length > 0 ||
+      !!localProfile;
+
+    if (!supabase) {
+      if (hasLocalData) {
+        try {
+          sessionStorage.setItem(LOGIN_MERGE_SCREEN_FLAG_KEY, 'true');
+        } catch {
+          // Ignore sessionStorage errors
+        }
+      }
+      localStorage.setItem(mergeDoneKey, 'true');
+      return;
+    }
+
+    let mergedSomething = false;
+
+    try {
+      // Habits
+      const [remoteHabitsRes, guestHabitsRes] = await Promise.all([
+        supabase.from('habits').select('*').eq('user_id', authenticatedUserId),
+        supabase.from('habits').select('*').eq('user_id', guestUserId)
+      ]);
+      const remoteHabits: Habit[] = (remoteHabitsRes.data || []).map(snakeToCamelObj) as Habit[];
+      const guestHabitsRemote: Habit[] = (guestHabitsRes.data || []).map(snakeToCamelObj) as Habit[];
+      const mergedHabits = unionById<Habit>(remoteHabits, guestHabitsRemote, localHabits);
+      if (mergedHabits.length > 0) {
+        mergedSomething = true;
+        localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(mergedHabits));
+        const dbHabits = mergedHabits.map(h => camelToSnake({ user_id: authenticatedUserId, ...h }));
+        await supabase.from('habits').upsert(dbHabits);
+        if (guestHabitsRes.data && guestHabitsRes.data.length > 0) {
+          await supabase.from('habits').delete().eq('user_id', guestUserId);
+        }
+      }
+
+      // Tasks
+      const [remoteTasksRes, guestTasksRes] = await Promise.all([
+        supabase.from('tasks').select('*').eq('user_id', authenticatedUserId),
+        supabase.from('tasks').select('*').eq('user_id', guestUserId)
+      ]);
+      const remoteTasks: Task[] = (remoteTasksRes.data || []).map(snakeToCamelObj) as Task[];
+      const guestTasksRemote: Task[] = (guestTasksRes.data || []).map(snakeToCamelObj) as Task[];
+      const mergedTasks = unionById<Task>(remoteTasks, guestTasksRemote, localTasks);
+      if (mergedTasks.length > 0) {
+        mergedSomething = true;
+        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(mergedTasks));
+        const dbTasks = mergedTasks.map(t => camelToSnake({ user_id: authenticatedUserId, ...t }));
+        await supabase.from('tasks').upsert(dbTasks);
+        if (guestTasksRes.data && guestTasksRes.data.length > 0) {
+          await supabase.from('tasks').delete().eq('user_id', guestUserId);
+        }
+      }
+
+      // Focus sessions
+      const [remoteSessionsRes, guestSessionsRes] = await Promise.all([
+        supabase.from('focus_sessions').select('*').eq('user_id', authenticatedUserId),
+        supabase.from('focus_sessions').select('*').eq('user_id', guestUserId)
+      ]);
+      const remoteSessions: FocusSession[] = (remoteSessionsRes.data || []).map(snakeToCamelObj) as FocusSession[];
+      const guestSessionsRemote: FocusSession[] = (guestSessionsRes.data || []).map(snakeToCamelObj) as FocusSession[];
+      const mergedSessions = unionById<FocusSession>(remoteSessions, guestSessionsRemote, localSessions);
+      if (mergedSessions.length > 0) {
+        mergedSomething = true;
+        localStorage.setItem(STORAGE_KEYS.FOCUS_SESSIONS, JSON.stringify(mergedSessions));
+        const dbSessions = mergedSessions.map(s => camelToSnake({ user_id: authenticatedUserId, ...s }));
+        await supabase.from('focus_sessions').upsert(dbSessions);
+        if (guestSessionsRes.data && guestSessionsRes.data.length > 0) {
+          await supabase.from('focus_sessions').delete().eq('user_id', guestUserId);
+        }
+      }
+
+      // Task templates
+      const [remoteTemplatesRes, guestTemplatesRes] = await Promise.all([
+        supabase.from('task_templates').select('*').eq('user_id', authenticatedUserId),
+        supabase.from('task_templates').select('*').eq('user_id', guestUserId)
+      ]);
+      const remoteTemplates: TaskTemplate[] = (remoteTemplatesRes.data || []).map(snakeToCamelObj) as TaskTemplate[];
+      const guestTemplatesRemote: TaskTemplate[] = (guestTemplatesRes.data || []).map(snakeToCamelObj) as TaskTemplate[];
+      const mergedTemplates = unionById<TaskTemplate>(remoteTemplates, guestTemplatesRemote, localTemplates);
+      if (mergedTemplates.length > 0) {
+        mergedSomething = true;
+        localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(mergedTemplates));
+        const dbTemplates = mergedTemplates.map(t => camelToSnake({ user_id: authenticatedUserId, ...t }));
+        await supabase.from('task_templates').upsert(dbTemplates);
+        if (guestTemplatesRes.data && guestTemplatesRes.data.length > 0) {
+          await supabase.from('task_templates').delete().eq('user_id', guestUserId);
+        }
+      }
+
+      // Profile (guest profile takes priority over empty/new account data)
+      const [remoteProfileRes, guestProfileRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', authenticatedUserId).maybeSingle(),
+        supabase.from('profiles').select('*').eq('id', guestUserId).maybeSingle()
+      ]);
+
+      const remoteProfile: UserProfile | null = remoteProfileRes.data
+        ? (snakeToCamelObj(remoteProfileRes.data) as UserProfile)
+        : null;
+      const guestProfileRemote: UserProfile | null = guestProfileRes.data
+        ? (snakeToCamelObj(guestProfileRes.data) as UserProfile)
+        : null;
+
+      let mergedProfile: UserProfile | null = null;
+      if (remoteProfile) mergedProfile = { ...remoteProfile };
+      if (guestProfileRemote) mergedProfile = { ...(mergedProfile || {} as UserProfile), ...guestProfileRemote };
+      if (localProfile) mergedProfile = { ...(mergedProfile || {} as UserProfile), ...localProfile };
+
+      if (mergedProfile) {
+        mergedSomething = true;
+        localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(mergedProfile));
+        const dbProfile = camelToSnake({ id: authenticatedUserId, ...mergedProfile });
+        await supabase.from('profiles').upsert(dbProfile);
+        if (guestProfileRes.data) {
+          await supabase.from('profiles').delete().eq('id', guestUserId);
+        }
+      }
+
+      localStorage.setItem(mergeDoneKey, 'true');
+
+      if (mergedSomething) {
+        try {
+          sessionStorage.setItem(LOGIN_MERGE_SCREEN_FLAG_KEY, 'true');
+        } catch {
+          // Ignore sessionStorage write failures
+        }
+      }
+    } catch (error) {
+      console.error('Guest to account merge failed', error);
+      // Do not mark merge as done so that a future login can retry
+    }
+  },
+
+  consumeLoginMergeScreenFlag: (): boolean => {
+    try {
+      const value = sessionStorage.getItem(LOGIN_MERGE_SCREEN_FLAG_KEY);
+      if (value === 'true') {
+        sessionStorage.removeItem(LOGIN_MERGE_SCREEN_FLAG_KEY);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
   }
 };
