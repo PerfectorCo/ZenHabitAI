@@ -3,11 +3,13 @@ import React from 'react';
 import { Play, Pause, RotateCcw, Coffee, Brain, Bell, CheckCircle2, PlusCircle, Settings2, AlertCircle, CheckCircle, TimerReset, Zap, History, Clock } from 'lucide-react';
 import { Habit, Task, FocusSession } from '../types';
 
+import { useLanguage } from '../LanguageContext';
+
 export const GENERAL_GOALS = [
-  { id: 'reading', title: 'Đọc sách 📖', category: 'Learning' },
-  { id: 'learning', title: 'Học tập 🧠', category: 'Skills' },
-  { id: 'meditation', title: 'Thiền định 🧘', category: 'Mindset' },
-  { id: 'exercise', title: 'Tập thể dục 🏃', category: 'Health' }
+  { id: 'reading', category: 'Learning' },
+  { id: 'learning', category: 'Skills' },
+  { id: 'meditation', category: 'Mindset' },
+  { id: 'exercise', category: 'Health' }
 ];
 
 interface PomodoroTimerProps {
@@ -22,7 +24,8 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
   const [focusDuration, setFocusDuration] = React.useState(25);
   const [breakDuration, setBreakDuration] = React.useState(5);
   const [autoStartBreak, setAutoStartBreak] = React.useState(false);
-  
+  const { t } = useLanguage();
+
   const [minutes, setMinutes] = React.useState(25);
   const [seconds, setSeconds] = React.useState(0);
   const [isActive, setIsActive] = React.useState(false);
@@ -96,7 +99,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
 
   const handleComplete = () => {
     setIsActive(false);
-    
+
     if (mode === 'focus' && selectedItem) {
       onLogTime(selectedItem.id, selectedItem.type, focusDuration);
     } else if (mode === 'break') {
@@ -187,7 +190,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
     if (!selectedItem) return null;
     if (selectedItem.type === 'habit') return habits.find(h => h.id === selectedItem.id)?.title;
     if (selectedItem.type === 'task') return tasks.find(t => t.id === selectedItem.id)?.title;
-    return GENERAL_GOALS.find(g => g.id === selectedItem.id)?.title;
+    return t(`pomodoro.presets.${selectedItem.id}`);
   };
 
   const todaySessions = sessions.filter(s => s.timestamp.startsWith(today));
@@ -209,7 +212,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
               <p className="text-slate-500 mt-2">Amazing work on <span className="text-indigo-600 font-bold">{getSelectedItemTitle()}</span>.</p>
             </div>
             <div className="grid gap-3">
-              <button 
+              <button
                 onClick={handleMarkAsDone}
                 className="w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg shadow-indigo-100"
               >
@@ -317,7 +320,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
                   <option key={t.id} value={`task:${t.id}`}>{t.title}</option>
                 ))}
                 {GENERAL_GOALS.map(g => (
-                  <option key={g.id} value={`general:${g.id}`}>{g.title}</option>
+                  <option key={g.id} value={`general:${g.id}`}>{t(`pomodoro.presets.${g.id}`)}</option>
                 ))}
              </select>
           </div>

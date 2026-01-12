@@ -1,9 +1,11 @@
 
 import React from 'react';
-import { ArrowLeft, ShieldCheck, CreditCard, Mail, Wallet, Globe, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, CreditCard, Mail, Wallet, Globe, Check, Sparkles, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 import { getCachedPaymentMethods, UserContext, PaymentMethodConfig } from '../services/paymentMethodService';
 import { StorageService } from '../services/storageService';
+import { createPaymentIntent } from '../services/paymentService';
+import { loadStripe } from '@stripe/stripe-js';
 
 interface CheckoutProps {
   onConfirm: () => void;
@@ -41,6 +43,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>(paymentSelection.primaryMethod.id);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [processStep, setProcessStep] = React.useState(0);
+  const [error, setError] = React.useState<string | null>(null);
 
   const prices = {
     monthly: { vi: '79.000đ', en: '$3.99' },
@@ -53,14 +56,87 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
     return cycle === 'monthly' ? prices.monthly[language] : prices.yearly[language];
   };
 
-  const handlePayNow = () => {
+  const handlePayNow = async () => {
     setIsProcessing(true);
-    // Simulate multi-step production payment processing
-    setTimeout(() => setProcessStep(1), 800);  // Encrypting
-    setTimeout(() => setProcessStep(2), 1600); // Contacting Provider
-    setTimeout(() => {
-      onConfirm();
-    }, 2500);
+    setError(null);
+    setProcessStep(0);
+
+    try {
+      // Step 1: Encrypting secure data
+      setProcessStep(1);
+
+      // Step 2: Create payment intent via backend
+      setProcessStep(2);
+
+      const paymentIntent = await createPaymentIntent({
+        plan,
+        cycle,
+        paymentMethod,
+        userEmail,
+      });
+
+      // Handle Stripe payment
+      if (paymentMethod === 'stripe') {
+        // Access env var - Vite exposes VITE_* vars automatically
+        const stripePublishableKey = (import.meta.env as { VITE_STRIPE_PUBLISHABLE_KEY?: string }).VITE_STRIPE_PUBLISHABLE_KEY;
+
+        if (!stripePublishableKey) {
+          throw new Error(
+            isVi
+              ? 'Cấu hình thanh toán chưa hoàn tất. Vui lòng thử lại sau.'
+              : 'Payment configuration incomplete. Please try again later.'
+          );
+        }
+
+        const stripe = await loadStripe(stripePublishableKey);
+        if (!stripe) {
+          throw new Error(
+            isVi
+              ? 'Không thể khởi tạo hệ thống thanh toán. Vui lòng làm mới trang và thử lại.'
+              : 'Unable to initialize payment system. Please refresh and try again.'
+          );
+        }
+
+        // Redirect to Stripe Checkout
+        if (paymentIntent.paymentUrl) {
+          // paymentUrl is the Stripe Checkout session URL
+          window.location.href = paymentIntent.paymentUrl;
+        } else {
+          throw new Error(
+            isVi
+              ? 'Không nhận được liên kết thanh toán. Vui lòng thử lại.'
+              : 'Payment link not received. Please try again.'
+          );
+        }
+      } else if (paymentMethod === 'momo' || paymentMethod === 'zalopay') {
+        // Handle MoMo/ZaloPay redirect
+        if (paymentIntent.paymentUrl) {
+          window.location.href = paymentIntent.paymentUrl;
+        } else {
+          throw new Error(
+            isVi
+              ? 'Phương thức thanh toán này chưa được hỗ trợ. Vui lòng chọn phương thức khác.'
+              : 'This payment method is not yet supported. Please choose another method.'
+          );
+        }
+      } else {
+        throw new Error(
+          isVi
+            ? 'Phương thức thanh toán không hợp lệ.'
+            : 'Invalid payment method.'
+        );
+      }
+    } catch (err: any) {
+      console.error('Payment error:', err);
+      setError(
+        err.message ||
+        (isVi
+          ? 'Không thể xử lý thanh toán. Vui lòng thử lại sau.'
+          : 'Unable to process payment. Please try again later.')
+      );
+      setIsProcessing(false);
+      setProcessStep(0);
+    }
   };
 
   const getPaymentIcon = (id: PaymentMethod) => {
@@ -160,6 +236,21 @@ const Checkout: React.FC<CheckoutProps> = ({ onConfirm, onCancel, plan, userEmai
             <p className="font-bold text-slate-800">{userEmail}</p>
           </div>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+            <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+            <div className="flex-1">
+              <p className="text-red-800 text-sm font-medium">{error}</p>
+              <p className="text-red-600 text-xs mt-1">
+                {isVi
+                  ? 'Vui lòng kiểm tra lại thông tin và thử lại.'
+                  : 'Please check your information and try again.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Payment Methods */}
         <div className="space-y-6">

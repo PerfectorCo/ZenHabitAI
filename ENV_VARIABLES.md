@@ -129,13 +129,62 @@ Then access them as `import.meta.env.VITE_SUPABASE_URL` instead of `process.env.
 
 ---
 
+### 4. VITE_STRIPE_PUBLISHABLE_KEY
+**Purpose**: Stripe publishable key for payment processing (client-side)
+
+**Where it's used**:
+- `components/Checkout.tsx` - Stripe payment integration
+
+**How to get it**:
+1. Go to [Stripe Dashboard](https://dashboard.stripe.com)
+2. Go to Developers → API keys
+3. Copy the "Publishable key" (starts with `pk_test_` for test mode, `pk_live_` for production)
+
+**Example**:
+```bash
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+```
+
+**Note**: Required for payment functionality. Use test keys (`pk_test_`) for development.
+
+---
+
+### 5. VITE_SUPABASE_URL (Alternative to SUPABASE_URL)
+**Purpose**: Supabase project URL (Vite-compatible format)
+
+**Where it's used**:
+- `services/paymentService.ts` - Payment API calls
+- Can be used instead of `SUPABASE_URL` for Vite projects
+
+**Example**:
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+```
+
+---
+
+### 6. VITE_SUPABASE_ANON_KEY (Alternative to SUPABASE_ANON_KEY)
+**Purpose**: Supabase anonymous key (Vite-compatible format)
+
+**Where it's used**:
+- `services/paymentService.ts` - Payment API calls
+- Can be used instead of `SUPABASE_ANON_KEY` for Vite projects
+
+**Example**:
+```bash
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+```
+
+---
+
 ## Required vs Optional
 
 | Variable | Required | Fallback |
 |----------|----------|----------|
 | `GEMINI_API_KEY` | ✅ **Yes** | App will fail without it |
-| `SUPABASE_URL` | ⚠️ Optional | Falls back to localStorage only |
-| `SUPABASE_ANON_KEY` | ⚠️ Optional | Falls back to localStorage only |
+| `SUPABASE_URL` or `VITE_SUPABASE_URL` | ⚠️ Optional | Falls back to localStorage only |
+| `SUPABASE_ANON_KEY` or `VITE_SUPABASE_ANON_KEY` | ⚠️ Optional | Falls back to localStorage only |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | ⚠️ **Required for payments** | Payment features won't work |
 
 ---
 

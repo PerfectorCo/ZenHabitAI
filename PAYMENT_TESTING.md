@@ -1,8 +1,26 @@
 # Payment Testing Guide
 
-## Current State
+## ⚠️ **CURRENT STATE: SIMULATION MODE**
 
 The payment flow is currently **simulated** - it shows a processing animation and then calls `onConfirm()` after 2.5 seconds. No actual payment processing occurs yet.
+
+**⚠️ DO NOT RELEASE TO PRODUCTION** until all requirements in `PRODUCTION_PAYMENT_SETUP.md` are completed.
+
+---
+
+## 📋 Production Readiness
+
+See **[PRODUCTION_PAYMENT_SETUP.md](./PRODUCTION_PAYMENT_SETUP.md)** for a comprehensive checklist of what needs to be set up before releasing the app to production, including:
+
+- Backend API endpoints
+- Payment provider integrations (Stripe, MoMo, ZaloPay)
+- Webhook handling
+- Security & compliance
+- Database schema updates
+- Testing requirements
+- Monitoring & logging
+
+---
 
 ## Testing the Payment UI/UX Flow
 

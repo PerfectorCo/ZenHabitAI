@@ -186,10 +186,10 @@ export const translations = {
       today: 'Today',
       noSessions: 'No sessions logged today yet.',
       presets: {
-        reading: 'Reading',
-        learning: 'Learning',
-        meditation: 'Meditation',
-        exercise: 'Exercise'
+        reading: 'Reading 📖',
+        learning: 'Learning 🧠',
+        meditation: 'Meditation 🧘',
+        exercise: 'Exercise 🏃'
       }
     },
     analytics: {
@@ -413,10 +413,10 @@ export const translations = {
       today: 'Hôm nay',
       noSessions: 'Chưa có phiên nào được ghi lại hôm nay.',
       presets: {
-        reading: 'Đọc sách',
-        learning: 'Học tập',
-        meditation: 'Thiền định',
-        exercise: 'Tập thể dục'
+        reading: 'Đọc sách 📖',
+        learning: 'Học tập 🧠',
+        meditation: 'Thiền định 🧘',
+        exercise: 'Tập thể dục 🏃'
       }
     },
     analytics: {
