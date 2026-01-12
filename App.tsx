@@ -13,6 +13,7 @@ import Pricing from './components/Pricing';
 import Checkout from './components/Checkout';
 import PaymentSuccess from './components/PaymentSuccess';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
+import { X } from 'lucide-react';
 import { StorageService } from './services/storageService';
 import { useLanguage } from './LanguageContext';
 import { supabase } from './services/supabaseClient';
@@ -29,6 +30,7 @@ const App: React.FC = () => {
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
   const [pendingPlan, setPendingPlan] = React.useState<'pro' | 'master' | null>(null);
   const [showMergeScreen, setShowMergeScreen] = React.useState<boolean>(false);
+  const [isConnectingAccount, setIsConnectingAccount] = React.useState<boolean>(false);
 
   const { t, language } = useLanguage();
 
@@ -67,6 +69,7 @@ const App: React.FC = () => {
         }
         StorageService.setSession(true, newUserId);
         setIsAuthenticated(true);
+        setIsConnectingAccount(false);
         setView('dashboard');
       } else if (event === 'SIGNED_OUT') {
         StorageService.clearAll();
@@ -399,7 +402,13 @@ const App: React.FC = () => {
       />;
       case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} onLogTime={() => {}} onMarkComplete={() => {}} />;
       case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} onNavigateToPricing={() => setView('pricing')} />;
-      case 'profile': return <Profile profile={profile} onSave={(p) => setProfile(p)} onLogout={handleLogout} />;
+      case 'profile': return <Profile
+        profile={profile}
+        isGuest={StorageService.getUserId() === 'guest-user'}
+        onSave={(p) => setProfile(p)}
+        onLogout={handleLogout}
+        onConnectAccount={() => setIsConnectingAccount(true)}
+      />;
       case 'feedback': return <Feedback />;
       case 'pricing': return <Pricing onSelectPlan={handleUpdateSubscription} currentPlan={profile.subscription} />;
       case 'checkout': return <Checkout
@@ -424,6 +433,35 @@ const App: React.FC = () => {
   return (
     <Layout currentView={view} setView={setView} userProfile={profile}>
       {renderView()}
+
+      {isConnectingAccount && (
+        <div className="fixed inset-0 z-50 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsConnectingAccount(false)} />
+          <div className="relative h-full flex items-center justify-center p-4">
+            <div className="max-w-md w-full relative">
+              <button
+                onClick={() => setIsConnectingAccount(false)}
+                className="absolute -top-12 right-0 text-white/70 hover:text-white flex items-center gap-2 text-sm font-bold transition-colors"
+              >
+                <X size={20} />
+                {t('common.cancel')}
+              </button>
+              <Auth
+                hideGuest
+                minimal
+                onLoginSuccess={(userId) => {
+                  StorageService.trackEvent('guest_profile_connect_success');
+                  StorageService.setSession(true, userId);
+                  setIsAuthenticated(true);
+                  setIsConnectingAccount(false);
+                  setView('dashboard');
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {showMergeScreen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
           <div className="max-w-md w-full mx-4 rounded-3xl bg-white shadow-xl border border-slate-100 p-6 space-y-4">

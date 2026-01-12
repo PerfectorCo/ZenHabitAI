@@ -1,16 +1,19 @@
 
 import React from 'react';
-import { User, Mail, Target, Save, Cloud, LogOut, Bell, ShieldCheck, ShieldAlert, Plus, Edit3, X, Check, Trash2 } from 'lucide-react';
+import { User, Mail, Target, Save, Cloud, LogOut, Bell, ShieldCheck, ShieldAlert, Plus, Edit3, X, Check, Trash2, Link2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { useLanguage } from '../LanguageContext';
+import { StorageService } from '../services/storageService';
 
 interface ProfileProps {
   profile: UserProfile;
+  isGuest?: boolean;
   onSave: (profile: UserProfile) => void;
   onLogout: () => void;
+  onConnectAccount?: () => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
+const Profile: React.FC<ProfileProps> = ({ profile, isGuest, onSave, onLogout, onConnectAccount }) => {
   const [formData, setFormData] = React.useState({
     ...profile,
     customGoalOptions: profile.customGoalOptions || [],
@@ -20,6 +23,12 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
   const [showCustomGoalInput, setShowCustomGoalInput] = React.useState(false);
   const [customGoalText, setCustomGoalText] = React.useState('');
   const { t, language } = useLanguage();
+
+  React.useEffect(() => {
+    if (isGuest) {
+      StorageService.trackEvent('guest_profile_connect_shown');
+    }
+  }, [isGuest]);
 
   const [notifPermission, setNotifPermission] = React.useState<NotificationPermission>(
     "Notification" in window ? Notification.permission : "default"
@@ -261,6 +270,27 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
           </button>
         </div>
       </form>
+
+      {isGuest && (
+        <div className="p-8 rounded-[2.5rem] bg-indigo-50/50 border border-indigo-100 flex flex-col md:flex-row items-center gap-6 animate-in slide-in-from-bottom-4 duration-700">
+          <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
+            <Link2 size={28} />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <h3 className="text-lg font-bold text-slate-900">{t('profile.connectAccount')}</h3>
+            <p className="text-sm text-slate-500">{t('profile.connectSubtitle')}</p>
+          </div>
+          <button
+            onClick={() => {
+              StorageService.trackEvent('guest_profile_connect_clicked');
+              onConnectAccount?.();
+            }}
+            className="px-6 py-3 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-sm"
+          >
+            {t('profile.connectAccount')}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

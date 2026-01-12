@@ -221,6 +221,8 @@ export const translations = {
       notifications: 'Browser Notifications',
       enableNow: 'Enable Now',
       customGoal: 'Custom Goal',
+      connectAccount: 'Connect your progress',
+      connectSubtitle: 'Saving and continuing your journey across devices.',
       goals: {
         prod: 'Improve productivity',
         fitness: 'Physical fitness',
@@ -448,6 +450,8 @@ export const translations = {
       notifications: 'Thông báo trình duyệt',
       enableNow: 'Bật ngay',
       customGoal: 'Mục tiêu tự chọn',
+      connectAccount: 'Kết nối tài khoản',
+      connectSubtitle: 'Lưu trữ và tiếp tục hành trình của bạn trên nhiều thiết bị.',
       goals: {
         prod: 'Nâng cao năng suất',
         fitness: 'Thể chất khỏe mạnh',

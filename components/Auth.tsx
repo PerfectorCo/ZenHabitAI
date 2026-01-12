@@ -6,9 +6,11 @@ import { useLanguage } from '../LanguageContext';
 
 interface AuthProps {
   onLoginSuccess: (userId: string) => void;
+  hideGuest?: boolean;
+  minimal?: boolean;
 }
 
-const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
+const Auth: React.FC<AuthProps> = ({ onLoginSuccess, hideGuest = false, minimal = false }) => {
   const { language } = useLanguage();
   const [isLoading, setIsLoading] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -147,112 +149,123 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     onLoginSuccess('guest-user');
   };
 
+  const content = (
+    <div className={`${minimal ? '' : 'max-w-md w-full relative z-10 animate-in fade-in zoom-in duration-700'}`}>
+      <div className={`bg-white/10 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl ${minimal ? 'bg-slate-800/80' : ''}`}>
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 mb-6">
+            <Timer size={32} />
+          </div>
+          <h1 className="text-2xl font-semibold text-white mb-2">
+            {copy.title}
+          </h1>
+          <p className="text-slate-300 text-sm leading-relaxed">
+            {copy.subtitle}
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          {!hideGuest && (
+            <>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleGuestContinue}
+                  className="w-full flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white py-4 px-6 transition-all active:scale-95"
+                >
+                  <span className="font-semibold">{copy.guestLabel}</span>
+                  <span className="mt-1 text-xs text-slate-300">{copy.guestHelper}</span>
+                </button>
+              </div>
+
+              <div className="h-px bg-white/10" />
+            </>
+          )}
+
+          <div className="space-y-3">
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-sm font-medium text-white">{copy.emailLabel}</span>
+              <span className="text-xs text-slate-300">{copy.emailHelper}</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 mt-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={isVi ? 'you@example.com' : 'you@example.com'}
+                className="flex-1 rounded-2xl bg-slate-900/40 border border-white/15 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={handleEmailLogin}
+                disabled={isLoading === 'email'}
+                className="sm:w-40 w-full inline-flex items-center justify-center rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-semibold px-4 py-3 transition-all active:scale-95 disabled:opacity-70"
+              >
+                {isLoading === 'email'
+                  ? (isVi ? 'Đang gửi...' : 'Sending...')
+                  : isVi
+                    ? 'Gửi liên kết'
+                    : 'Send link'}
+              </button>
+            </div>
+            {emailSent && (
+              <p className="text-xs text-emerald-300 mt-1">
+                {isVi
+                  ? 'Đã gửi liên kết đăng nhập. Vui lòng kiểm tra hộp thư của bạn.'
+                  : 'Sign-in link sent. Please check your inbox.'}
+              </p>
+            )}
+          </div>
+
+          {supabase && (
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-sm font-medium text-white">{copy.googleLabel}</span>
+                <span className="text-xs text-slate-300">{copy.googleHelper}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isLoading === 'google'}
+                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-900 font-semibold py-3.5 px-6 rounded-2xl transition-all active:scale-95 disabled:opacity-70"
+              >
+                {isLoading === 'google' ? (
+                  <div className="w-5 h-5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
+                ) : (
+                  <img
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    className="w-5 h-5"
+                    alt="Google"
+                  />
+                )}
+                {copy.googleLabel}
+              </button>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+              <p className="text-red-200 text-xs text-center leading-relaxed">{error}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {!minimal && (
+        <div className="mt-6 space-y-2 text-center">
+          <p className="text-slate-400 text-xs">{copy.postLoginNote}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  if (minimal) return content;
+
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 overflow-hidden relative">
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full" />
-
-      <div className="max-w-md w-full relative z-10 animate-in fade-in zoom-in duration-700">
-        <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-10 shadow-2xl">
-          <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 mb-6">
-              <Timer size={32} />
-            </div>
-            <h1 className="text-2xl font-semibold text-white mb-2">
-              {copy.title}
-            </h1>
-            <p className="text-slate-300 text-sm leading-relaxed">
-              {copy.subtitle}
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={handleGuestContinue}
-                className="w-full flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-white py-4 px-6 transition-all active:scale-95"
-              >
-                <span className="font-semibold">{copy.guestLabel}</span>
-                <span className="mt-1 text-xs text-slate-300">{copy.guestHelper}</span>
-              </button>
-            </div>
-
-            <div className="h-px bg-white/10" />
-
-            <div className="space-y-3">
-              <div className="flex flex-col items-start gap-1">
-                <span className="text-sm font-medium text-white">{copy.emailLabel}</span>
-                <span className="text-xs text-slate-300">{copy.emailHelper}</span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isVi ? 'you@example.com' : 'you@example.com'}
-                  className="flex-1 rounded-2xl bg-slate-900/40 border border-white/15 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-                <button
-                  type="button"
-                  onClick={handleEmailLogin}
-                  disabled={isLoading === 'email'}
-                  className="sm:w-40 w-full inline-flex items-center justify-center rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-semibold px-4 py-3 transition-all active:scale-95 disabled:opacity-70"
-                >
-                  {isLoading === 'email'
-                    ? (isVi ? 'Đang gửi...' : 'Sending...')
-                    : isVi
-                      ? 'Gửi liên kết'
-                      : 'Send link'}
-                </button>
-              </div>
-              {emailSent && (
-                <p className="text-xs text-emerald-300 mt-1">
-                  {isVi
-                    ? 'Đã gửi liên kết đăng nhập. Vui lòng kiểm tra hộp thư của bạn.'
-                    : 'Sign-in link sent. Please check your inbox.'}
-                </p>
-              )}
-            </div>
-
-            {supabase && (
-              <div className="space-y-2 pt-2 border-t border-white/10">
-                <div className="flex flex-col items-start gap-1">
-                  <span className="text-sm font-medium text-white">{copy.googleLabel}</span>
-                  <span className="text-xs text-slate-300">{copy.googleHelper}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading === 'google'}
-                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-900 font-semibold py-3.5 px-6 rounded-2xl transition-all active:scale-95 disabled:opacity-70"
-                >
-                  {isLoading === 'google' ? (
-                    <div className="w-5 h-5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
-                  ) : (
-                    <img
-                      src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                      className="w-5 h-5"
-                      alt="Google"
-                    />
-                  )}
-                  {copy.googleLabel}
-                </button>
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-                <p className="text-red-200 text-xs text-center leading-relaxed">{error}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-2 text-center">
-          <p className="text-slate-400 text-xs">{copy.postLoginNote}</p>
-        </div>
-      </div>
+      {content}
     </div>
   );
 };

@@ -87,6 +87,13 @@ const unionById = <T extends { id: string }>(...lists: T[][]): T[] => {
 };
 
 export const StorageService = {
+  // Tracking
+  trackEvent: (eventName: string, properties?: any) => {
+    // In a real app, this would send to PostHog, Mixpanel, etc.
+    // For now, we'll just log it.
+    console.log(`[Analytics] ${eventName}`, properties);
+  },
+
   // Auth Operations
   getSession: (): boolean => {
     return localStorage.getItem(STORAGE_KEYS.SESSION) === 'true';
