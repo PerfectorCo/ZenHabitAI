@@ -37,7 +37,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
     <div className="min-h-screen bg-slate-50 flex">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -67,8 +67,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
                   key={item.id}
                   onClick={() => { setView(item.id); setIsSidebarOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    currentView === item.id 
-                      ? 'bg-indigo-50 text-indigo-600 font-medium' 
+                    currentView === item.id
+                      ? 'bg-indigo-50 text-indigo-600 font-medium'
                       : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
@@ -83,8 +83,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
             <button
               onClick={() => { setView('feedback'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                currentView === 'feedback' 
-                  ? 'bg-indigo-50 text-indigo-600 font-medium' 
+                currentView === 'feedback'
+                  ? 'bg-indigo-50 text-indigo-600 font-medium'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
@@ -92,7 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
               {t('nav.feedback')}
             </button>
 
-            <div 
+            <div
               onClick={() => { setView('pricing'); setIsSidebarOpen(false); }}
               className={`bg-slate-50 rounded-xl p-4 cursor-pointer hover:bg-indigo-50 transition-colors group ${currentView === 'pricing' ? 'bg-indigo-50 ring-1 ring-indigo-100' : ''}`}
             >
@@ -103,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
                 <div className="overflow-hidden">
                   <p className="text-sm font-bold text-slate-800 truncate">{userProfile.name}</p>
                   <p className={`text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 ${isPro ? 'text-indigo-500' : 'text-slate-400'}`}>
-                    {isPro ? <Heart size={10} className="fill-indigo-500" /> : <Leaf size={10} className="fill-slate-400" />} 
+                    {isPro ? <Heart size={10} className="fill-indigo-500" /> : <Leaf size={10} className="fill-slate-400" />}
                     {getPlanLabel()}
                   </p>
                 </div>
@@ -117,27 +117,24 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 flex items-center justify-between px-4 lg:px-8 bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               className="lg:hidden p-2 text-slate-500"
               onClick={() => setIsSidebarOpen(true)}
             >
               <Menu size={24} />
             </button>
-            <div className="flex items-center gap-2">
-               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
           </div>
 
           <div className="flex items-center gap-4">
             {/* Language Switcher */}
             <div className="flex items-center bg-slate-100 rounded-lg p-1">
-              <button 
+              <button
                 onClick={() => setLanguage('en')}
                 className={`px-3 py-1 rounded text-[10px] font-black uppercase transition-all ${language === 'en' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 EN
               </button>
-              <button 
+              <button
                 onClick={() => setLanguage('vi')}
                 className={`px-3 py-1 rounded text-[10px] font-black uppercase transition-all ${language === 'vi' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
               >
@@ -149,9 +146,9 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
               <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white" />
             </button>
-            <div 
+            <div
               onClick={() => setView('profile')}
-              className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-400 to-purple-400 cursor-pointer hover:scale-105 transition-transform" 
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-400 to-purple-400 cursor-pointer hover:scale-105 transition-transform"
             />
           </div>
         </header>

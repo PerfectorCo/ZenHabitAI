@@ -4,6 +4,7 @@ import { User, Mail, Target, Save, Cloud, LogOut, Bell, ShieldCheck, ShieldAlert
 import { UserProfile } from '../types';
 import { useLanguage } from '../LanguageContext';
 import { StorageService } from '../services/storageService';
+import { supabase } from '../services/supabaseClient';
 
 interface ProfileProps {
   profile: UserProfile;
@@ -22,11 +23,18 @@ const Profile: React.FC<ProfileProps> = ({ profile, isGuest, onSave, onLogout, o
   const [isSaving, setIsSaving] = React.useState(false);
   const [showCustomGoalInput, setShowCustomGoalInput] = React.useState(false);
   const [customGoalText, setCustomGoalText] = React.useState('');
+  const [authEmail, setAuthEmail] = React.useState<string | null>(null);
   const { t, language } = useLanguage();
 
   React.useEffect(() => {
     if (isGuest) {
       StorageService.trackEvent('guest_profile_connect_shown');
+    } else if (supabase) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user?.email) {
+          setAuthEmail(user.email);
+        }
+      });
     }
   }, [isGuest]);
 
@@ -142,7 +150,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, isGuest, onSave, onLogout, o
             <input
               type="email"
               className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-slate-400"
-              value={formData.email}
+              value={authEmail || formData.email}
               readOnly
             />
           </div>

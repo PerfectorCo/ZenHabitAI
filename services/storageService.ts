@@ -68,6 +68,7 @@ const STORAGE_KEYS = {
 const LOGIN_SUGGESTION_SESSION_KEY_PREFIX = 'zenhabit_login_suggestion_';
 const LOGIN_MERGE_DONE_PREFIX = 'zenhabit_login_merged_';
 const LOGIN_MERGE_SCREEN_FLAG_KEY = 'zenhabit_login_merge_screen';
+const LOGIN_MERGE_SUCCESS_TOAST_KEY = 'zenhabit_login_merge_success_toast';
 
 const getPlatformFromUserAgent = (): 'desktop' | 'mobile' => {
   if (typeof navigator === 'undefined') return 'desktop';
@@ -581,15 +582,19 @@ export const StorageService = {
         }
       }
 
-      localStorage.setItem(mergeDoneKey, 'true');
+      // Final step: Sync profile from auth metadata for potential missing fields (email, avatar, name)
+      // This is safe even if guest profile had data, as sync_profile_from_auth only fills missing/generic fields.
+      await supabase.rpc('sync_profile_from_auth', { user_uuid: authenticatedUserId });
 
+      localStorage.setItem(mergeDoneKey, 'true');
       if (mergedSomething) {
         try {
-          sessionStorage.setItem(LOGIN_MERGE_SCREEN_FLAG_KEY, 'true');
+          sessionStorage.setItem(LOGIN_MERGE_SUCCESS_TOAST_KEY, 'true');
         } catch {
-          // Ignore sessionStorage write failures
+          // Ignore sessionStorage errors
         }
       }
+
     } catch (error) {
       console.error('Guest to account merge failed', error);
       // Do not mark merge as done so that a future login can retry
@@ -601,6 +606,19 @@ export const StorageService = {
       const value = sessionStorage.getItem(LOGIN_MERGE_SCREEN_FLAG_KEY);
       if (value === 'true') {
         sessionStorage.removeItem(LOGIN_MERGE_SCREEN_FLAG_KEY);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  consumeMergeSuccessToast: (): boolean => {
+    try {
+      const value = sessionStorage.getItem(LOGIN_MERGE_SUCCESS_TOAST_KEY);
+      if (value === 'true') {
+        sessionStorage.removeItem(LOGIN_MERGE_SUCCESS_TOAST_KEY);
         return true;
       }
       return false;

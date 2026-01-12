@@ -228,7 +228,8 @@ export const translations = {
         fitness: 'Physical fitness',
         mental: 'Mental health',
         learning: 'Learning skills'
-      }
+      },
+      mergeSuccess: 'Your progress is now saved to your account.'
     }
   },
   vi: {
@@ -457,7 +458,8 @@ export const translations = {
         fitness: 'Thể chất khỏe mạnh',
         mental: 'Sức khỏe tinh thần',
         learning: 'Học kỹ năng mới'
-      }
+      },
+      mergeSuccess: 'Tiến trình của bạn đã được lưu vào tài khoản.'
     }
   }
 };

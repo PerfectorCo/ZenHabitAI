@@ -13,7 +13,7 @@ import Pricing from './components/Pricing';
 import Checkout from './components/Checkout';
 import PaymentSuccess from './components/PaymentSuccess';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
-import { X } from 'lucide-react';
+import { X, CheckCircle } from 'lucide-react';
 import { StorageService } from './services/storageService';
 import { useLanguage } from './LanguageContext';
 import { supabase } from './services/supabaseClient';
@@ -29,7 +29,7 @@ const App: React.FC = () => {
   const [taskTemplates, setTaskTemplates] = React.useState<TaskTemplate[]>([]);
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
   const [pendingPlan, setPendingPlan] = React.useState<'pro' | 'master' | null>(null);
-  const [showMergeScreen, setShowMergeScreen] = React.useState<boolean>(false);
+  const [showMergeToast, setShowMergeToast] = React.useState<boolean>(false);
   const [isConnectingAccount, setIsConnectingAccount] = React.useState<boolean>(false);
 
   const { t, language } = useLanguage();
@@ -49,8 +49,11 @@ const App: React.FC = () => {
         const newUserId = session.user.id;
         const previousUserId = StorageService.getUserId();
         if (previousUserId && previousUserId !== newUserId) {
-          StorageService.mergeGuestIntoUser(previousUserId, newUserId)
-            .catch(err => console.error('Deferred guest merge failed', err));
+          try {
+            await StorageService.mergeGuestIntoUser(previousUserId, newUserId);
+          } catch (err) {
+            console.error('Initial guest merge failed', err);
+          }
         }
         StorageService.setSession(true, newUserId);
         setIsAuthenticated(true);
@@ -59,18 +62,21 @@ const App: React.FC = () => {
       setIsLoading(false);
     };
 
-    const { data: listener } = supabase?.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabase?.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         const newUserId = session.user.id;
         const previousUserId = StorageService.getUserId();
         if (previousUserId && previousUserId !== newUserId) {
-          StorageService.mergeGuestIntoUser(previousUserId, newUserId)
-            .catch(err => console.error('Deferred guest merge failed', err));
+          try {
+            await StorageService.mergeGuestIntoUser(previousUserId, newUserId);
+          } catch (err) {
+            console.error('Auth state change guest merge failed', err);
+          }
         }
         StorageService.setSession(true, newUserId);
         setIsAuthenticated(true);
         setIsConnectingAccount(false);
-        setView('dashboard');
+        // Do not force setView('dashboard') here to respect the current view (e.g., Profile)
       } else if (event === 'SIGNED_OUT') {
         StorageService.clearAll();
         setIsAuthenticated(false);
@@ -88,8 +94,10 @@ const App: React.FC = () => {
 
   React.useEffect(() => {
     if (!isAuthenticated) return;
-    if (StorageService.consumeLoginMergeScreenFlag()) {
-      setShowMergeScreen(true);
+    if (StorageService.consumeMergeSuccessToast()) {
+      setShowMergeToast(true);
+      const timer = setTimeout(() => setShowMergeToast(false), 5000);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated]);
 
@@ -355,30 +363,7 @@ const App: React.FC = () => {
   }
 
   const isVi = language === 'vi';
-  const mergeCopy = {
-    title: {
-      vi: 'Tiếp tục hành trình của bạn',
-      en: 'Continue your journey'
-    },
-    message: {
-      vi: 'Tiến trình, thói quen và nhiệm vụ gần đây của bạn đã được lưu vào tài khoản này. Bạn có thể tiếp tục như bình thường.',
-      en: 'Your recent progress, habits, and tasks are now saved to this account. You can continue as usual.'
-    },
-    primaryAction: {
-      label: {
-        vi: 'Tiếp tục',
-        en: 'Continue'
-      },
-      action: 'continue' as const
-    },
-    secondaryAction: {
-      label: {
-        vi: 'Quay lại màn hình trước',
-        en: 'Go back to previous screen'
-      },
-      action: 'go_back' as const
-    }
-  };
+
 
   const renderView = () => {
     switch(view) {
@@ -449,12 +434,9 @@ const App: React.FC = () => {
               <Auth
                 hideGuest
                 minimal
-                onLoginSuccess={(userId) => {
+                onLoginSuccess={() => {
                   StorageService.trackEvent('guest_profile_connect_success');
-                  StorageService.setSession(true, userId);
-                  setIsAuthenticated(true);
                   setIsConnectingAccount(false);
-                  setView('dashboard');
                 }}
               />
             </div>
@@ -462,33 +444,11 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {showMergeScreen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
-          <div className="max-w-md w-full mx-4 rounded-3xl bg-white shadow-xl border border-slate-100 p-6 space-y-4">
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {isVi ? mergeCopy.title.vi : mergeCopy.title.en}
-              </h2>
-              <p className="text-sm text-slate-600">
-                {isVi ? mergeCopy.message.vi : mergeCopy.message.en}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowMergeScreen(false)}
-                className="w-full inline-flex items-center justify-center rounded-2xl bg-slate-900 text-white text-sm font-medium py-2.5 px-4 hover:bg-slate-800 transition-colors"
-              >
-                {isVi ? mergeCopy.primaryAction.label.vi : mergeCopy.primaryAction.label.en}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowMergeScreen(false)}
-                className="w-full inline-flex items-center justify-center rounded-2xl border border-slate-200 text-slate-700 text-sm font-medium py-2.5 px-4 hover:bg-slate-50 transition-colors"
-              >
-                {isVi ? mergeCopy.secondaryAction.label.vi : mergeCopy.secondaryAction.label.en}
-              </button>
-            </div>
+      {showMergeToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/10 backdrop-blur-xl">
+            <CheckCircle size={18} className="text-emerald-400" />
+            <span className="text-sm font-medium">{t('profile.mergeSuccess')}</span>
           </div>
         </div>
       )}
