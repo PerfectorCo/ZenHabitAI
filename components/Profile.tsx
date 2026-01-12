@@ -20,16 +20,16 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
   const [showCustomGoalInput, setShowCustomGoalInput] = React.useState(false);
   const [customGoalText, setCustomGoalText] = React.useState('');
   const { t, language } = useLanguage();
-  
+
   const [notifPermission, setNotifPermission] = React.useState<NotificationPermission>(
     "Notification" in window ? Notification.permission : "default"
   );
 
   const standardGoalsPool = [
-    { id: 'prod', label: t('profile.goals.goals.prod') || 'Improve productivity' },
-    { id: 'fitness', label: t('profile.goals.goals.fitness') || 'Physical fitness' },
-    { id: 'mental', label: t('profile.goals.goals.mental') || 'Mental health' },
-    { id: 'learning', label: t('profile.goals.goals.learning') || 'Learning skills' }
+    { id: 'prod', label: t('profile.goals.prod') || 'Improve productivity' },
+    { id: 'fitness', label: t('profile.goals.fitness') || 'Physical fitness' },
+    { id: 'mental', label: t('profile.goals.mental') || 'Mental health' },
+    { id: 'learning', label: t('profile.goals.learning') || 'Learning skills' }
   ];
 
   const requestNotificationPermission = async () => {
@@ -62,7 +62,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
         return {
           ...prev,
           customGoalOptions: alreadyInOptions ? prev.customGoalOptions : [...prev.customGoalOptions, text],
-          mainGoal: text 
+          mainGoal: text
         };
       });
       setCustomGoalText('');
@@ -93,7 +93,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
           <h1 className="text-3xl font-bold text-slate-900">{t('profile.header')}</h1>
           <p className="text-slate-500">{t('profile.subtitle')}</p>
         </div>
-        <button 
+        <button
           onClick={onLogout}
           className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl font-semibold transition-colors"
         >
@@ -143,7 +143,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
           <label className="text-xs uppercase font-black tracking-widest text-slate-400 flex items-center gap-2">
             <Target size={14} className="text-indigo-500" /> {t('profile.focusArea')}
           </label>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Standard Goals Pool */}
             {standardGoalsPool.filter(sg => !formData.hiddenStandardGoals.includes(sg.id)).map(goal => (
@@ -164,7 +164,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
                 </button>
                 <div className="flex items-center gap-2 pr-2">
                   {formData.mainGoal === goal.label && <Check size={14} />}
-                  <button 
+                  <button
                     type="button"
                     onClick={() => removeStandardGoalFromPool(goal.id, goal.label)}
                     className="opacity-0 group-hover:opacity-100 w-8 h-8 bg-red-50 hover:bg-red-500 rounded-xl flex items-center justify-center text-red-400 hover:text-white transition-all shadow-sm"
@@ -175,7 +175,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
                 </div>
               </div>
             ))}
-            
+
             {/* Custom options pool */}
             {formData.customGoalOptions.map((g, i) => (
                <div
@@ -186,8 +186,8 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
                     : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
                 }`}
               >
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => selectGoal(g)}
                   className="flex-1 text-sm font-bold py-3 text-left truncate pr-2"
                 >
@@ -195,7 +195,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, onSave, onLogout }) => {
                 </button>
                 <div className="flex items-center gap-2 pr-2">
                   {formData.mainGoal === g && <Check size={14} />}
-                  <button 
+                  <button
                     type="button"
                     onClick={() => removeCustomOptionFromPool(g)}
                     className="opacity-0 group-hover:opacity-100 w-8 h-8 bg-red-50 hover:bg-red-500 rounded-xl flex items-center justify-center text-red-400 hover:text-white transition-all shadow-sm"
