@@ -132,8 +132,10 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
             </button>
             <div
               onClick={() => setView('profile')}
-              className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-400 to-purple-400 cursor-pointer hover:scale-105 transition-transform"
-            />
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-400 to-purple-400 cursor-pointer hover:scale-105 transition-transform flex items-center justify-center text-white text-lg font-bold"
+            >
+              {userProfile.name.charAt(0)}
+            </div>
           </div>
         </header>
 

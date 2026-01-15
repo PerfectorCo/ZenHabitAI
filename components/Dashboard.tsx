@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, AlertCircle, Leaf } from 'lucide-react';
+import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, AlertCircle, Leaf, BarChart3 } from 'lucide-react';
 import { Habit, Task, Recommendation, UserProfile, StoredAIRecommendations } from '../types';
 import { getAIRecommendations } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -209,18 +209,29 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
             <h2 className="text-xl font-bold text-slate-900">{t('dashboard.aiInsights')}</h2>
           </div>
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
-                <YAxis axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
-                <Tooltip
-                  cursor={{fill: '#f8fafc'}}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar dataKey="completions" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                <BarChart3 size={48} className="text-slate-300 mb-4 opacity-30" />
+                <p className="text-slate-400 font-medium text-sm">
+                  {language === 'vi'
+                    ? 'Chưa có dữ liệu thói quen để hiển thị. Hãy bắt đầu thêm thói quen của bạn!'
+                    : 'No habit data to display yet. Start adding your habits!'}
+                </p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
+                  <YAxis axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
+                  <Tooltip
+                    cursor={{fill: '#f8fafc'}}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="completions" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </section>
       </div>
