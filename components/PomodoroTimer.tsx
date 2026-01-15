@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Play, Pause, RotateCcw, Coffee, Brain, Bell, CheckCircle2, PlusCircle, Settings2, AlertCircle, CheckCircle, TimerReset, Zap, History, Clock, Lock, Heart, X } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Brain, Bell, CheckCircle2, PlusCircle, Settings2, AlertCircle, CheckCircle, TimerReset, Zap, History, Clock } from 'lucide-react';
 import { Habit, Task, FocusSession, UserProfile } from '../types';
 
 import { useLanguage } from '../LanguageContext';
@@ -20,10 +20,9 @@ interface PomodoroTimerProps {
   profile: UserProfile;
   onLogTime: (id: string, type: 'habit' | 'task' | 'general' | 'break', minutes: number) => void;
   onMarkComplete: (id: string, type: 'habit' | 'task' | 'general') => void;
-  onNavigateToPricing: () => void;
 }
 
-const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, profile, onLogTime, onMarkComplete, onNavigateToPricing }) => {
+const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, profile, onLogTime, onMarkComplete }) => {
   const [focusDuration, setFocusDuration] = React.useState(25);
   const [breakDuration, setBreakDuration] = React.useState(5);
   const [autoStartBreak, setAutoStartBreak] = React.useState(false);
@@ -39,9 +38,6 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
   const [showSettings, setShowSettings] = React.useState(false);
   const [showPostSession, setShowPostSession] = React.useState(false);
   const [historyTab, setHistoryTab] = React.useState<'today' | 'week' | 'month'>('today');
-  const [showPaywall, setShowPaywall] = React.useState(false);
-
-  const isPro = profile.subscription === 'pro' || profile.subscription === 'master';
 
   const presets = [15, 25, 45, 60, 90];
   const today = new Date().toISOString().split('T')[0];
@@ -370,37 +366,22 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
             </div>
 
             <div className="flex p-1 bg-slate-50 rounded-xl">
-              {(['today', 'week', 'month'] as const).map(tab => {
-                const isLocked = (tab === 'week' || tab === 'month') && !isPro;
-
-                const handleTabClick = () => {
-                  StorageService.trackEvent('session_history_tab_click', { tab, locked: isLocked });
-
-                  if (isLocked) {
-                    setShowPaywall(true);
-                    StorageService.trackEvent('paywall_viewed_from_session_history');
-                  } else {
+              {(['today', 'week', 'month'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    StorageService.trackEvent('session_history_tab_click', { tab });
                     setHistoryTab(tab);
-                  }
-                };
-
-                return (
-                  <button
-                    key={tab}
-                    onClick={handleTabClick}
-                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                      historyTab === tab
-                        ? 'bg-white text-indigo-600 shadow-sm'
-                        : isLocked
-                          ? 'text-slate-300 hover:text-slate-400'
-                          : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    {t(`pomodoro.${tab === 'week' ? 'thisWeek' : tab === 'month' ? 'thisMonth' : 'today'}`)}
-                    {isLocked && <Lock size={10} className="text-slate-300" />}
-                  </button>
-                );
-              })}
+                  }}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    historyTab === tab
+                      ? 'bg-white text-indigo-600 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {t(`pomodoro.${tab === 'week' ? 'thisWeek' : tab === 'month' ? 'thisMonth' : 'today'}`)}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -437,52 +418,6 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
           </div>
         </div>
       </div>
-
-      {/* Paywall Invitation Modal */}
-      {showPaywall && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 shadow-2xl relative overflow-hidden group animate-in zoom-in duration-300">
-            <button
-              onClick={() => setShowPaywall(false)}
-              className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-500 transition-colors z-10"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex flex-col md:flex-row gap-8 items-center relative z-0">
-              <div className="w-20 h-20 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-500 shrink-0 shadow-inner">
-                <Heart size={40} className="fill-indigo-500/20" />
-              </div>
-              <div className="flex-1 text-center md:text-left space-y-3">
-                <h2 className="text-2xl font-bold text-slate-900 leading-tight">
-                  {t('pricing.triggers.history.title')}
-                </h2>
-                <p className="text-slate-500 italic leading-relaxed font-light text-base">
-                  "{t('pricing.triggers.history.message')}"
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 shrink-0 w-full md:w-auto md:min-w-[180px]">
-                <button
-                  onClick={() => {
-                    setShowPaywall(false);
-                    onNavigateToPricing();
-                  }}
-                  className="w-full py-4 px-8 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95"
-                >
-                  {t('common.goPro')}
-                </button>
-                <button
-                  onClick={() => setShowPaywall(false)}
-                  className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {t('common.later')}
-                </button>
-              </div>
-            </div>
-            {/* Subtle background decoration */}
-            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl pointer-events-none" />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

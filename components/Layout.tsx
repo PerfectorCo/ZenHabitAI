@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, CheckCircle2, Timer, BarChart3, Menu, X, User, Globe, MessageSquarePlus, Heart, Leaf } from 'lucide-react';
+import { LayoutDashboard, CheckCircle2, Timer, BarChart3, Menu, X, User, Globe, MessageSquarePlus } from 'lucide-react';
 import { ViewType, UserProfile } from '../types';
 import { useLanguage } from '../LanguageContext';
 
@@ -23,15 +23,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
     { id: 'profile' as ViewType, label: t('nav.profile'), icon: User },
   ];
 
-  const getPlanLabel = () => {
-    switch (userProfile.subscription) {
-      case 'pro': return t('pricing.plans.pro.name');
-      case 'master': return t('pricing.plans.master.name');
-      default: return t('pricing.plans.free.name');
-    }
-  };
-
-  const isPro = userProfile.subscription === 'pro' || userProfile.subscription === 'master';
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -92,20 +83,13 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
               {t('nav.feedback')}
             </button>
 
-            <div
-              onClick={() => { setView('pricing'); setIsSidebarOpen(false); }}
-              className={`bg-slate-50 rounded-xl p-4 cursor-pointer hover:bg-indigo-50 transition-colors group ${currentView === 'pricing' ? 'bg-indigo-50 ring-1 ring-indigo-100' : ''}`}
-            >
+            <div className="bg-slate-50 rounded-xl p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
                   {userProfile.name.charAt(0)}
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-bold text-slate-800 truncate">{userProfile.name}</p>
-                  <p className={`text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 ${isPro ? 'text-indigo-500' : 'text-slate-400'}`}>
-                    {isPro ? <Heart size={10} className="fill-indigo-500" /> : <Leaf size={10} className="fill-slate-400" />}
-                    {getPlanLabel()}
-                  </p>
                 </div>
               </div>
             </div>

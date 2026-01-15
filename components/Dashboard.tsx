@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, Heart, X, AlertCircle, Leaf } from 'lucide-react';
+import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, AlertCircle, Leaf } from 'lucide-react';
 import { Habit, Task, Recommendation, UserProfile, StoredAIRecommendations } from '../types';
 import { getAIRecommendations } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -12,26 +12,18 @@ interface DashboardProps {
   tasks: Task[];
   profile: UserProfile;
   onAddHabit: (title: string, category: string) => void;
-  onNavigateToPricing?: () => void;
 }
 
 const RECS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabit, onNavigateToPricing }) => {
+const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabit }) => {
   const [recommendations, setRecommendations] = React.useState<Recommendation[]>([]);
   const [loadingAI, setLoadingAI] = React.useState(true);
   const [aiIsReflecting, setAiIsReflecting] = React.useState(false);
   const [addedIds, setAddedIds] = React.useState<number[]>([]);
-  const [showInvitation, setShowInvitation] = React.useState<'refresh' | 'positive' | null>(null);
   const { t, language } = useLanguage();
 
-  const isPro = profile.subscription === 'pro' || profile.subscription === 'master';
-
   const fetchRecs = async (forceRefresh = false) => {
-    if (forceRefresh && !isPro) {
-      setShowInvitation('refresh');
-      return;
-    }
 
     setLoadingAI(true);
     setAiIsReflecting(false);
@@ -57,8 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
       setAiIsReflecting(true);
       setRecommendations(recs.fallbacks);
     } else if (recs && Array.isArray(recs)) {
-      const processedRecs = isPro ? recs : recs.slice(0, 3);
-      setRecommendations(processedRecs);
+      setRecommendations(recs);
       
       const newCache: StoredAIRecommendations = {
         recommendations: processedRecs,
@@ -71,15 +62,9 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
     setLoadingAI(false);
   };
 
-  React.useEffect(() => {
+    React.useEffect(() => {
     fetchRecs();
-    
-    const todayStr = new Date().toISOString().split('T')[0];
-    const completedToday = habits.filter(h => h.completedDates.includes(todayStr)).length;
-    if (completedToday >= 3 && !isPro && !localStorage.getItem('zenhabit_positive_dismissed')) {
-      setShowInvitation('positive');
-    }
-  }, [language, profile.mainGoal]); 
+  }, [language, profile.mainGoal]);
 
   const handleAddSuggestedHabit = (rec: Recommendation, index: number) => {
     if (rec.suggestedHabit) {
@@ -108,48 +93,6 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
         <p className="text-slate-500">{t('dashboard.focusForToday')}: <span className="text-indigo-600 font-medium">{mainGoalText}</span></p>
       </header>
 
-      {/* Zen Invitation Overlay */}
-      {showInvitation && (
-        <div className="bg-white border border-indigo-50 rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-top-4 duration-500 relative overflow-hidden group">
-          <button 
-            onClick={() => {
-              if (showInvitation === 'positive') localStorage.setItem('zenhabit_positive_dismissed', 'true');
-              setShowInvitation(null);
-            }} 
-            className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-500 transition-colors"
-          >
-            <X size={20} />
-          </button>
-          
-          <div className="flex flex-col md:flex-row gap-8 items-center">
-            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 shrink-0">
-              <Heart size={32} className="fill-indigo-500/20" />
-            </div>
-            <div className="flex-1 text-center md:text-left space-y-2">
-              <h2 className="text-xl font-bold text-slate-900">
-                {t(`pricing.triggers.${showInvitation}.title`)}
-              </h2>
-              <p className="text-slate-500 italic leading-relaxed max-w-2xl font-light">
-                "{t(`pricing.triggers.${showInvitation}.message`)}"
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 shrink-0 min-w-[160px]">
-              <button 
-                onClick={onNavigateToPricing}
-                className="w-full py-4 px-8 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95"
-              >
-                {t('common.goPro')}
-              </button>
-              <button 
-                onClick={() => setShowInvitation(null)}
-                className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                {t('common.later')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
@@ -196,8 +139,8 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
             <button 
               onClick={() => fetchRecs(true)} 
               disabled={loadingAI}
-              className={`p-2 transition-all disabled:opacity-50 ${isPro ? 'text-indigo-600 hover:scale-110' : 'text-slate-300 hover:text-indigo-400'}`}
-              title={isPro ? "Refresh recommendations" : "Refreshing is a Pro feature"}
+              className="p-2 transition-all disabled:opacity-50 text-indigo-600 hover:scale-110"
+              title="Refresh recommendations"
             >
               <RefreshCw size={18} className={loadingAI ? "animate-spin" : ""} />
             </button>

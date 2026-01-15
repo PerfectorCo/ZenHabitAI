@@ -9,9 +9,6 @@ import Profile from './components/Profile';
 import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 import Feedback from './components/Feedback';
-import Pricing from './components/Pricing';
-import Checkout from './components/Checkout';
-import PaymentSuccess from './components/PaymentSuccess';
 import { Habit, Task, ViewType, UserProfile, FocusSession, TaskTemplate } from './types';
 import { X, CheckCircle } from 'lucide-react';
 import { StorageService } from './services/storageService';
@@ -28,7 +25,6 @@ const App: React.FC = () => {
   const [categories, setCategories] = React.useState<string[]>([]);
   const [taskTemplates, setTaskTemplates] = React.useState<TaskTemplate[]>([]);
   const [focusSessions, setFocusSessions] = React.useState<FocusSession[]>([]);
-  const [pendingPlan, setPendingPlan] = React.useState<'pro' | 'master' | null>(null);
   const [showMergeToast, setShowMergeToast] = React.useState<boolean>(false);
   const [isConnectingAccount, setIsConnectingAccount] = React.useState<boolean>(false);
 
@@ -216,28 +212,6 @@ const App: React.FC = () => {
     setView('dashboard');
   };
 
-  const handleUpdateSubscription = async (plan: 'free' | 'pro' | 'master') => {
-    if (!profile) return;
-    if (plan === 'pro' || plan === 'master') {
-      setPendingPlan(plan);
-      setView('checkout');
-      return;
-    }
-    const userId = StorageService.getUserId();
-    const updatedProfile = { ...profile, subscription: plan };
-    setProfile(updatedProfile);
-    await StorageService.saveProfile(userId, updatedProfile);
-  };
-
-  const finalizeSubscription = async () => {
-    if (!profile || !pendingPlan) return;
-    const userId = StorageService.getUserId();
-    const updatedProfile: UserProfile = { ...profile, subscription: pendingPlan };
-    setProfile(updatedProfile);
-    await StorageService.saveProfile(userId, updatedProfile);
-    setPendingPlan(null);
-    setView('payment-success'); // Navigate to success screen
-  };
 
   const addHabit = async (title: string, category: string, reminderTime?: string) => {
     const userId = StorageService.getUserId();
@@ -430,7 +404,7 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch(view) {
-      case 'dashboard': return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
+      case 'dashboard': return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
       case 'habits': return <HabitManager
         habits={habits}
         tasks={tasks}
@@ -448,8 +422,8 @@ const App: React.FC = () => {
         onSkipTask={handleSkipTask}
         onDeleteTask={deleteTask}
       />;
-      case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} onLogTime={handleLogFocusSession} onMarkComplete={handleMarkGoalComplete} onNavigateToPricing={() => setView('pricing')} />;
-      case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} onNavigateToPricing={() => setView('pricing')} />;
+      case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} onLogTime={handleLogFocusSession} onMarkComplete={handleMarkGoalComplete} />;
+      case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} />;
       case 'profile': return <Profile
         profile={profile}
         isGuest={StorageService.getUserId() === 'guest-user'}
@@ -458,23 +432,7 @@ const App: React.FC = () => {
         onConnectAccount={() => setIsConnectingAccount(true)}
       />;
       case 'feedback': return <Feedback />;
-      case 'pricing': return <Pricing onSelectPlan={handleUpdateSubscription} currentPlan={profile.subscription} />;
-      case 'checkout': return <Checkout
-        userEmail={profile.email}
-        plan={pendingPlan || 'pro'}
-        onConfirm={finalizeSubscription}
-        onCancel={() => { setView('pricing'); setPendingPlan(null); }}
-        // For testing different payment methods, uncomment and modify:
-        // userContext={{
-        //   country: 'VN', // 'VN' | 'US' | etc.
-        //   language: 'vi', // 'vi' | 'en'
-        //   profession: 'dev', // 'dev' | 'knowledge_worker' | 'general_user'
-        //   hasInternationalCard: 'true', // 'true' | 'false' | 'unknown'
-        //   device: 'desktop' // 'desktop' | 'mobile'
-        // }}
-      />;
-      case 'payment-success': return <PaymentSuccess onContinue={() => setView('dashboard')} />;
-      default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} onNavigateToPricing={() => setView('pricing')} />;
+      default: return <Dashboard habits={habits} tasks={tasks} profile={profile} onAddHabit={addHabit} />;
     }
   };
 
