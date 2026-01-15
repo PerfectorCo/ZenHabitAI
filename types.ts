@@ -3,8 +3,8 @@ export interface UserProfile {
   name: string;
   email: string;
   bio: string;
-  mainGoal: string; 
-  customGoalOptions?: string[]; 
+  mainGoal: string;
+  customGoalOptions?: string[];
   hiddenStandardGoals?: string[]; // IDs of standard goals the user has "deleted"
   avatarUrl?: string;
   joinedDate: string;
@@ -53,6 +53,7 @@ export interface TaskTemplate {
 
 export interface FocusSession {
   id: string;
+  userId?: string;
   type: 'focus' | 'break';
   goalTitle: string;
   durationMinutes: number;

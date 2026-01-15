@@ -217,7 +217,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, hideGuest = false, minimal 
             )}
           </div>
 
-          {supabase && (
+          {/* {supabase && (
             <div className="space-y-2 pt-2 border-t border-white/10">
               <div className="flex flex-col items-start gap-1">
                 <span className="text-sm font-medium text-white">{copy.googleLabel}</span>
@@ -241,7 +241,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, hideGuest = false, minimal 
                 {copy.googleLabel}
               </button>
             </div>
-          )}
+          )} */}
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">

@@ -157,6 +157,8 @@ export const translations = {
       reminder: 'Reminder',
       addHabit: 'Add Habit',
       streaks: 'Daily Streaks',
+      emptyStreaksTitle: 'A quiet beginning',
+      emptyStreaksMessage: 'Not every day has a streak, but every day is an opportunity to return to your path.',
       tasks: 'Tasks & Chores',
       presets: 'Presets Library',
       quickAction: 'Quick action...',
@@ -165,6 +167,8 @@ export const translations = {
       done: 'Completed',
       editTask: 'Edit Task',
       saveTemplate: 'Save as template',
+      removeFromPresets: 'Remove from presets',
+      setRecurringTask: 'Set as recurring task',
       skip: 'Paused for today'
     },
     pomodoro: {
@@ -184,7 +188,11 @@ export const translations = {
       focusTarget: 'Focus Target',
       history: 'Session History',
       today: 'Today',
+      thisWeek: 'This Week',
+      thisMonth: 'This Month',
       noSessions: 'No sessions logged today yet.',
+      noSessionsWeek: 'No sessions logged this week.',
+      noSessionsMonth: 'No sessions logged this month.',
       presets: {
         reading: 'Reading 📖',
         learning: 'Learning 🧠',
@@ -387,6 +395,8 @@ export const translations = {
       reminder: 'Nhắc nhở',
       addHabit: 'Thêm thói quen',
       streaks: 'Chuỗi thói quen hàng ngày',
+      emptyStreaksTitle: 'Một khởi đầu tĩnh lặng',
+      emptyStreaksMessage: 'Không phải ngày nào cũng có chuỗi. Nhưng ngày nào cũng có thể bắt đầu.',
       tasks: 'Công việc & Nhiệm vụ',
       presets: 'Thư viện mẫu',
       quickAction: 'Thêm nhanh công việc...',
@@ -395,6 +405,8 @@ export const translations = {
       done: 'Đã hoàn thành',
       editTask: 'Sửa công việc',
       saveTemplate: 'Lưu thành mẫu',
+      removeFromPresets: 'Xóa khỏi mẫu',
+      setRecurringTask: 'Đặt thói quen định kỳ',
       skip: 'Bỏ qua hôm nay'
     },
     pomodoro: {
@@ -414,7 +426,11 @@ export const translations = {
       focusTarget: 'Mục tiêu tập trung',
       history: 'Lịch sử phiên tập trung',
       today: 'Hôm nay',
+      thisWeek: 'Tuần này',
+      thisMonth: 'Tháng này',
       noSessions: 'Chưa có phiên nào được ghi lại hôm nay.',
+      noSessionsWeek: 'Chưa có phiên nào được ghi lại trong tuần này.',
+      noSessionsMonth: 'Chưa có phiên nào được ghi lại trong tháng này.',
       presets: {
         reading: 'Đọc sách 📖',
         learning: 'Học tập 🧠',

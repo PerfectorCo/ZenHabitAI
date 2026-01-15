@@ -45,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transition-transform duration-300 transform
+        fixed inset-y-0 left-0 z-50 w-68 bg-white border-r border-slate-200 transition-transform duration-300 transform
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static
       `}>

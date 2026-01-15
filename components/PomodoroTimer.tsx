@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Play, Pause, RotateCcw, Coffee, Brain, Bell, CheckCircle2, PlusCircle, Settings2, AlertCircle, CheckCircle, TimerReset, Zap, History, Clock } from 'lucide-react';
-import { Habit, Task, FocusSession } from '../types';
+import { Play, Pause, RotateCcw, Coffee, Brain, Bell, CheckCircle2, PlusCircle, Settings2, AlertCircle, CheckCircle, TimerReset, Zap, History, Clock, Lock, Heart, X } from 'lucide-react';
+import { Habit, Task, FocusSession, UserProfile } from '../types';
 
 import { useLanguage } from '../LanguageContext';
+import { StorageService } from '../services/storageService';
 
 export const GENERAL_GOALS = [
   { id: 'reading', category: 'Learning' },
@@ -16,11 +17,13 @@ interface PomodoroTimerProps {
   habits: Habit[];
   tasks: Task[];
   sessions: FocusSession[];
+  profile: UserProfile;
   onLogTime: (id: string, type: 'habit' | 'task' | 'general' | 'break', minutes: number) => void;
   onMarkComplete: (id: string, type: 'habit' | 'task' | 'general') => void;
+  onNavigateToPricing: () => void;
 }
 
-const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, onLogTime, onMarkComplete }) => {
+const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, profile, onLogTime, onMarkComplete, onNavigateToPricing }) => {
   const [focusDuration, setFocusDuration] = React.useState(25);
   const [breakDuration, setBreakDuration] = React.useState(5);
   const [autoStartBreak, setAutoStartBreak] = React.useState(false);
@@ -35,6 +38,10 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
   const [showErrorPulse, setShowErrorPulse] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const [showPostSession, setShowPostSession] = React.useState(false);
+  const [historyTab, setHistoryTab] = React.useState<'today' | 'week' | 'month'>('today');
+  const [showPaywall, setShowPaywall] = React.useState(false);
+
+  const isPro = profile.subscription === 'pro' || profile.subscription === 'master';
 
   const presets = [15, 25, 45, 60, 90];
   const today = new Date().toISOString().split('T')[0];
@@ -194,7 +201,28 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
   };
 
   const todaySessions = sessions.filter(s => s.timestamp.startsWith(today));
-  const totalFocusMinutes = todaySessions
+
+  const getFilteredSessions = () => {
+    if (historyTab === 'today') return todaySessions;
+
+    const now = new Date();
+    if (historyTab === 'week') {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      return sessions.filter(s => new Date(s.timestamp) >= startOfWeek);
+    }
+
+    if (historyTab === 'month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return sessions.filter(s => new Date(s.timestamp) >= startOfMonth);
+    }
+
+    return [];
+  };
+
+  const filteredSessions = getFilteredSessions();
+  const totalFocusMinutes = filteredSessions
     .filter(s => s.type === 'focus')
     .reduce((acc, s) => acc + s.durationMinutes, 0);
 
@@ -238,7 +266,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
 
       {/* Main Timer Display */}
       <div className={`w-72 h-72 rounded-full flex flex-col items-center justify-center relative transition-all duration-700 mb-8 ${
-        mode === 'focus' ? 'bg-white shadow-2xl shadow-indigo-100 border-4 border-indigo-50' : 'bg-white shadow-2xl shadow-emerald-100 border-4 border-emerald-50'
+        mode === 'focus' ? 'bg-white shadow-2xl shadow-indigo-100 border-indigo-50' : 'bg-white shadow-2xl shadow-emerald-100 border-emerald-50'
       }`}>
         <div className="absolute top-10 flex gap-2">
           <Brain size={18} className={mode === 'focus' ? 'text-indigo-600' : 'text-slate-200'} />
@@ -328,26 +356,66 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
 
         {/* History */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-slate-900 font-bold flex items-center gap-2">
-              <History size={18} className="text-indigo-500" /> Session History
-            </h3>
-            <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-full">
-              <Clock size={12} className="text-indigo-600" />
-              <span className="text-[10px] font-bold text-indigo-600">{totalFocusMinutes}m Today</span>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-slate-900 font-bold flex items-center gap-2">
+                <History size={18} className="text-indigo-500" /> {t('pomodoro.history')}
+              </h3>
+              <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-full">
+                <Clock size={12} className="text-indigo-600" />
+                <span className="text-[10px] font-bold text-indigo-600">
+                  {totalFocusMinutes}m {historyTab === 'today' ? t('pomodoro.today') : historyTab === 'week' ? t('pomodoro.thisWeek') : t('pomodoro.thisMonth')}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex p-1 bg-slate-50 rounded-xl">
+              {(['today', 'week', 'month'] as const).map(tab => {
+                const isLocked = (tab === 'week' || tab === 'month') && !isPro;
+
+                const handleTabClick = () => {
+                  StorageService.trackEvent('session_history_tab_click', { tab, locked: isLocked });
+
+                  if (isLocked) {
+                    setShowPaywall(true);
+                    StorageService.trackEvent('paywall_viewed_from_session_history');
+                  } else {
+                    setHistoryTab(tab);
+                  }
+                };
+
+                return (
+                  <button
+                    key={tab}
+                    onClick={handleTabClick}
+                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                      historyTab === tab
+                        ? 'bg-white text-indigo-600 shadow-sm'
+                        : isLocked
+                          ? 'text-slate-300 hover:text-slate-400'
+                          : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {t(`pomodoro.${tab === 'week' ? 'thisWeek' : tab === 'month' ? 'thisMonth' : 'today'}`)}
+                    {isLocked && <Lock size={10} className="text-slate-300" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-            {todaySessions.length === 0 ? (
+            {filteredSessions.length === 0 ? (
               <div className="text-center py-10">
                 <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Clock size={24} className="text-slate-200" />
                 </div>
-                <p className="text-xs text-slate-400 font-medium">No sessions logged today yet.</p>
+                <p className="text-xs text-slate-400 font-medium">
+                  {historyTab === 'today' ? t('pomodoro.noSessions') : historyTab === 'week' ? t('pomodoro.noSessionsWeek') : t('pomodoro.noSessionsMonth')}
+                </p>
               </div>
             ) : (
-              todaySessions.map((session) => (
+              filteredSessions.map((session) => (
                 <div key={session.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${session.type === 'focus' ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white text-emerald-600 shadow-sm'}`}>
@@ -356,7 +424,7 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
                     <div>
                       <p className="text-xs font-bold text-slate-800">{session.goalTitle}</p>
                       <p className="text-[10px] text-slate-400 font-medium">
-                        {new Date(session.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(session.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })} • {new Date(session.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
@@ -369,6 +437,52 @@ const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ habits, tasks, sessions, 
           </div>
         </div>
       </div>
+
+      {/* Paywall Invitation Modal */}
+      {showPaywall && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 md:p-12 shadow-2xl relative overflow-hidden group animate-in zoom-in duration-300">
+            <button
+              onClick={() => setShowPaywall(false)}
+              className="absolute top-6 right-6 p-2 text-slate-300 hover:text-slate-500 transition-colors z-10"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex flex-col md:flex-row gap-8 items-center relative z-0">
+              <div className="w-20 h-20 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-500 shrink-0 shadow-inner">
+                <Heart size={40} className="fill-indigo-500/20" />
+              </div>
+              <div className="flex-1 text-center md:text-left space-y-3">
+                <h2 className="text-2xl font-bold text-slate-900 leading-tight">
+                  {t('pricing.triggers.history.title')}
+                </h2>
+                <p className="text-slate-500 italic leading-relaxed font-light text-base">
+                  "{t('pricing.triggers.history.message')}"
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 shrink-0 w-full md:w-auto md:min-w-[180px]">
+                <button
+                  onClick={() => {
+                    setShowPaywall(false);
+                    onNavigateToPricing();
+                  }}
+                  className="w-full py-4 px-8 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 active:scale-95"
+                >
+                  {t('common.goPro')}
+                </button>
+                <button
+                  onClick={() => setShowPaywall(false)}
+                  className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {t('common.later')}
+                </button>
+              </div>
+            </div>
+            {/* Subtle background decoration */}
+            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl pointer-events-none" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle, FastForward, Undo2, Star, X, Pencil, Save } from 'lucide-react';
+import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle, FastForward, Undo2, Star, X, Pencil, Save, Leaf } from 'lucide-react';
 import { Habit, Task, TaskTemplate } from '../types';
+import { useLanguage } from '../LanguageContext';
 
 interface HabitManagerProps {
   habits: Habit[];
@@ -23,13 +24,13 @@ interface HabitManagerProps {
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const HabitManager: React.FC<HabitManagerProps> = ({ 
-  habits, 
-  tasks, 
+const HabitManager: React.FC<HabitManagerProps> = ({
+  habits,
+  tasks,
   categories,
   templates,
-  onAddHabit, 
-  onToggleHabit, 
+  onAddHabit,
+  onToggleHabit,
   onAddLevelTask,
   onUpdateTask,
   onAddFromTemplate,
@@ -40,6 +41,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
   onSkipTask,
   onDeleteTask
 }) => {
+  const { t } = useLanguage();
   const [newHabitTitle, setNewHabitTitle] = React.useState('');
   const [category, setCategory] = React.useState('Health');
   const [customCategory, setCustomCategory] = React.useState('');
@@ -107,7 +109,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
     setEditRepeatDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
 
-  const pendingTasks = tasks.filter(t => 
+  const pendingTasks = tasks.filter(t =>
     !t.completed && !t.skippedDates?.includes(todayStr) && (!t.isRecurring || t.repeatDays?.includes(todayDay))
   );
 
@@ -117,65 +119,81 @@ const HabitManager: React.FC<HabitManagerProps> = ({
   return (
     <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
       <header>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Structure Your Day</h1>
-        <p className="text-slate-500">Syncing goals and tasks across all your devices.</p>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('habits.header')}</h1>
+        <p className="text-slate-500">{t('habits.subtitle')}</p>
       </header>
 
       {/* Habit Creation */}
       <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-           <Zap className="text-indigo-500" size={24} /> New Habit Goal
+           <Zap className="text-indigo-500" size={24} /> {t('habits.newHabit')}
         </h2>
         <form onSubmit={handleHabitAdd} className="flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[280px]">
-            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-2">Action Description</label>
+            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-2">{t('habits.description')}</label>
             <input
               type="text"
               value={newHabitTitle}
               onChange={(e) => setNewHabitTitle(e.target.value)}
-              placeholder="e.g. 20 pushups every morning"
+              placeholder={t('habits.descriptionPlh')}
               className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-slate-800"
             />
           </div>
-          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-100"><Plus size={20} /> Add Habit</button>
+          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-100 flex items-center gap-2">
+            <Plus size={20} /> {t('habits.addHabit')}
+          </button>
         </form>
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3"><Target className="text-indigo-500" size={24} /> Daily Streaks</h2>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3"><Target className="text-indigo-500" size={24} /> {t('habits.streaks')}</h2>
           <div className="space-y-4">
-            {habits.map((habit) => (
-              <div key={habit.id} className="group flex items-center gap-5 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                <button onClick={() => onToggleHabit(habit.id)} className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 ${habit.completedDates.includes(todayStr) ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'border-slate-100 text-transparent bg-slate-50'}`}><Check size={20} /></button>
-                <div className="flex-1">
-                  <h4 className={`font-bold text-base ${habit.completedDates.includes(todayStr) ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{habit.title}</h4>
-                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{habit.category}</p>
+            {habits.length === 0 ? (
+              <div className="bg-white p-8 rounded-[2rem] border border-dashed border-slate-200 flex flex-col items-center text-center space-y-4 animate-in fade-in duration-700">
+                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300">
+                  <Leaf size={32} />
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-black text-indigo-600">{habit.streak}</div>
-                  <div className="text-[9px] text-slate-400 uppercase font-black">Days</div>
+                <div className="space-y-1">
+                  <h3 className="font-bold text-slate-900 font-serif italic text-lg">{t('habits.emptyStreaksTitle')}</h3>
+                  <p className="text-sm text-slate-500 max-w-[240px] leading-relaxed">
+                    {t('habits.emptyStreaksMessage')}
+                  </p>
                 </div>
               </div>
-            ))}
+            ) : (
+              habits.map((habit) => (
+                <div key={habit.id} className="group flex items-center gap-5 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                  <button onClick={() => onToggleHabit(habit.id)} className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 ${habit.completedDates.includes(todayStr) ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'border-slate-100 text-transparent bg-slate-50'}`}><Check size={20} /></button>
+                  <div className="flex-1">
+                    <h4 className={`font-bold text-base ${habit.completedDates.includes(todayStr) ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{habit.title}</h4>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{habit.category}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black text-indigo-600">{habit.streak}</div>
+                    <div className="text-[9px] text-slate-400 uppercase font-black">{t('common.days')}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         {/* Tasks Section */}
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3"><Calendar className="text-violet-500" size={24} /> Tasks & Chores</h2>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3"><Calendar className="text-violet-500" size={24} /> {t('habits.tasks')}</h2>
           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl shadow-slate-200">
-             
+
              {/* Presets Library */}
              <div className="mb-8">
                 <div className="flex items-center gap-2 mb-4 text-white/60">
                   <Library size={16} />
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em]">Presets Library</h3>
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em]">{t('habits.presets')}</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
                    {templates.map(tmpl => (
                       <div key={tmpl.id} className="flex items-center bg-white/10 hover:bg-white/20 rounded-xl overflow-hidden group transition-all">
-                        <button 
+                        <button
                           onClick={() => onAddFromTemplate(tmpl)}
                           className="pl-4 pr-2 py-2 text-xs font-bold flex items-center gap-2"
                         >
@@ -183,10 +201,10 @@ const HabitManager: React.FC<HabitManagerProps> = ({
                           {tmpl.title}
                           {tmpl.isRecurring && <Repeat size={10} className="text-indigo-400" />}
                         </button>
-                        <button 
+                        <button
                           onClick={() => onDeleteTemplate(tmpl.id)}
                           className="pr-2 py-2 text-white/20 hover:text-red-400 transition-colors"
-                          title="Remove from presets"
+                          title={t('habits.removeFromPresets')}
                         >
                           <X size={12} />
                         </button>
@@ -198,9 +216,9 @@ const HabitManager: React.FC<HabitManagerProps> = ({
              <form onSubmit={handleTaskAdd} className="space-y-4 mb-8">
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
-                    <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Quick action..." className="w-full bg-white/10 border-none text-white rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-400 font-medium placeholder:text-white/20" />
+                    <input type="text" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder={t('habits.quickAction')} className="w-full bg-white/10 border-none text-white rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-indigo-400 font-medium placeholder:text-white/20" />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      <button type="button" onClick={() => setIsTaskRecurring(!isTaskRecurring)} className={`p-2 rounded-lg transition-all ${isTaskRecurring ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/50' : 'text-white/20 hover:text-white/40'}`} title="Set as recurring task"><Repeat size={18} /></button>
+                      <button type="button" onClick={() => setIsTaskRecurring(!isTaskRecurring)} className={`p-2 rounded-lg transition-all ${isTaskRecurring ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/50' : 'text-white/20 hover:text-white/40'}`} title={t('habits.setRecurringTask')}><Repeat size={18} /></button>
                     </div>
                   </div>
                   <button type="submit" className="bg-white text-slate-900 px-5 rounded-2xl hover:bg-indigo-50 transition-colors"><Plus size={24} /></button>
@@ -208,7 +226,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
 
                 {isTaskRecurring && (
                   <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 duration-300">
-                    <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">Repeat on:</span>
+                    <span className="text-[10px] font-black uppercase text-white/40 tracking-widest">{t('habits.repeatOn')}</span>
                     <div className="flex flex-wrap gap-2">
                       {DAYS_OF_WEEK.map((day, idx) => (
                         <button key={idx} type="button" onClick={() => toggleRepeatDay(idx)} className={`min-w-[42px] h-9 px-2 rounded-lg text-[10px] font-black transition-all ${repeatDays.includes(idx) ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-white/5 text-white/30 hover:bg-white/10'}`}>{day}</button>
@@ -229,7 +247,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
                              <span className="text-sm font-bold block">{task.title}</span>
                              {task.isRecurring && (
                                <span className="text-[9px] text-indigo-400 font-black uppercase flex items-center gap-1 mt-0.5">
-                                 <Repeat size={8} /> {task.repeatDays?.length === 7 ? 'Every Day' : task.repeatDays?.map(d => DAYS_OF_WEEK[d]).join(', ')}
+                                 <Repeat size={8} /> {task.repeatDays?.length === 7 ? t('common.everyDay') : task.repeatDays?.map(d => DAYS_OF_WEEK[d]).join(', ')}
                                </span>
                              )}
                           </div>
@@ -243,9 +261,9 @@ const HabitManager: React.FC<HabitManagerProps> = ({
                       ) : (
                         <div className="flex-1 space-y-4 animate-in fade-in duration-300">
                           <div className="flex gap-3">
-                            <input 
-                              type="text" 
-                              value={editTitle} 
+                            <input
+                              type="text"
+                              value={editTitle}
                               onChange={(e) => setEditTitle(e.target.value)}
                               autoFocus
                               className="flex-1 bg-white/5 border-none text-white rounded-xl px-4 py-2 outline-none focus:ring-1 focus:ring-indigo-400 text-sm font-bold"
@@ -257,10 +275,10 @@ const HabitManager: React.FC<HabitManagerProps> = ({
                           {editIsRecurring && (
                             <div className="flex flex-wrap gap-1.5 pt-2 border-t border-white/5">
                               {DAYS_OF_WEEK.map((day, idx) => (
-                                <button 
-                                  key={idx} 
-                                  type="button" 
-                                  onClick={() => toggleEditRepeatDay(idx)} 
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => toggleEditRepeatDay(idx)}
                                   className={`min-w-[36px] h-8 px-1.5 rounded-lg text-[9px] font-black transition-all ${editRepeatDays.includes(idx) ? 'bg-indigo-500 text-white' : 'bg-white/5 text-white/30'}`}
                                 >
                                   {day}

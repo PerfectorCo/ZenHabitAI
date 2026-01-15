@@ -100,12 +100,12 @@ export const StorageService = {
     return localStorage.getItem(STORAGE_KEYS.SESSION) === 'true';
   },
 
-  setSession: (status: boolean, userId: string = 'mock-user-123') => {
+  setSession: (status: boolean, userId: string = 'guest-user') => {
     localStorage.setItem(STORAGE_KEYS.SESSION, String(status));
     localStorage.setItem(STORAGE_KEYS.USER_ID, userId);
   },
 
-  getUserId: () => localStorage.getItem(STORAGE_KEYS.USER_ID) || 'mock-user-123',
+  getUserId: () => localStorage.getItem(STORAGE_KEYS.USER_ID) || 'guest-user',
 
   clearAll: () => {
     Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
@@ -113,7 +113,7 @@ export const StorageService = {
 
   // Category Operations
   getCategories: async (userId: string): Promise<string[]> => {
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         const { data, error } = await supabase
           .from('categories')
@@ -134,7 +134,7 @@ export const StorageService = {
       const updated = [...current, categoryName];
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(updated));
 
-      if (supabase) {
+      if (supabase && userId !== 'guest-user') {
         try {
           await supabase.from('categories').upsert({
             id: `${userId}-${categoryName}`,
@@ -150,7 +150,7 @@ export const StorageService = {
 
   // Profile Operations
   getProfile: async (userId: string): Promise<UserProfile> => {
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -194,7 +194,7 @@ export const StorageService = {
 
   saveProfile: async (userId: string, profile: UserProfile) => {
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         // Convert camelCase to snake_case for Supabase
         const dbProfile = camelToSnake({ id: userId, ...profile });
@@ -207,7 +207,7 @@ export const StorageService = {
 
   // Habit Operations
   getHabits: async (userId: string): Promise<Habit[]> => {
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         const { data, error } = await supabase
           .from('habits')
@@ -232,7 +232,7 @@ export const StorageService = {
     else localHabits.push(habit);
     localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(localHabits));
 
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         // Convert camelCase to snake_case for Supabase
         const dbHabit = camelToSnake({ user_id: userId, ...habit });
@@ -246,9 +246,10 @@ export const StorageService = {
   deleteHabit: async (habitId: string) => {
     const localHabits = JSON.parse(localStorage.getItem(STORAGE_KEYS.HABITS) || '[]');
     localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(localHabits.filter((h: Habit) => h.id !== habitId)));
-    if (supabase) {
+    const userId = StorageService.getUserId();
+    if (supabase && userId !== 'guest-user') {
       try {
-        await supabase.from('habits').delete().eq('id', habitId);
+        await supabase.from('habits').delete().eq('id', habitId).eq('user_id', userId);
       } catch (e) {
         console.error("Supabase habit deletion failed", e);
       }
@@ -257,7 +258,7 @@ export const StorageService = {
 
   // Task Operations
   getTasks: async (userId: string): Promise<Task[]> => {
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         const { data, error } = await supabase
           .from('tasks')
@@ -282,7 +283,7 @@ export const StorageService = {
     else localTasks.push(task);
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(localTasks));
 
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         // Convert camelCase to snake_case for Supabase
         const dbTask = camelToSnake({ user_id: userId, ...task });
@@ -296,9 +297,10 @@ export const StorageService = {
   deleteTask: async (taskId: string) => {
     const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(localTasks.filter((t: Task) => t.id !== taskId)));
-    if (supabase) {
+    const userId = StorageService.getUserId();
+    if (supabase && userId !== 'guest-user') {
       try {
-        await supabase.from('tasks').delete().eq('id', taskId);
+        await supabase.from('tasks').delete().eq('id', taskId).eq('user_id', userId);
       } catch (e) {
         console.error("Supabase task deletion failed", e);
       }
@@ -307,7 +309,7 @@ export const StorageService = {
 
   // Template Operations
   getTaskTemplates: async (userId: string): Promise<TaskTemplate[]> => {
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         const { data, error } = await supabase.from('task_templates').select('*').eq('user_id', userId);
         if (!error && data) {
@@ -328,7 +330,7 @@ export const StorageService = {
     if (index > -1) local[index] = template;
     else local.push(template);
     localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(local));
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         // Convert camelCase to snake_case for Supabase
         const dbTemplate = camelToSnake({ user_id: userId, ...template });
@@ -342,7 +344,7 @@ export const StorageService = {
   deleteTaskTemplate: async (userId: string, templateId: string) => {
     const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEMPLATES) || '[]');
     localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(local.filter((t: TaskTemplate) => t.id !== templateId)));
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         await supabase.from('task_templates').delete().eq('id', templateId).eq('user_id', userId);
       } catch (e) {
@@ -353,7 +355,7 @@ export const StorageService = {
 
   // Focus Session Operations
   getFocusSessions: async (userId: string): Promise<FocusSession[]> => {
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         const { data, error } = await supabase.from('focus_sessions').select('*').eq('user_id', userId).order('timestamp', { ascending: false });
         if (!error && data) {
@@ -372,7 +374,7 @@ export const StorageService = {
     const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.FOCUS_SESSIONS) || '[]');
     local.unshift(session);
     localStorage.setItem(STORAGE_KEYS.FOCUS_SESSIONS, JSON.stringify(local));
-    if (supabase) {
+    if (supabase && userId !== 'guest-user') {
       try {
         // Convert camelCase to snake_case for Supabase
         const dbSession = camelToSnake({ user_id: userId, ...session });
@@ -388,7 +390,7 @@ export const StorageService = {
     const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.FEEDBACK) || '[]');
     local.push(feedback);
     localStorage.setItem(STORAGE_KEYS.FEEDBACK, JSON.stringify(local));
-    if (supabase) {
+    if (supabase && StorageService.getUserId() !== 'guest-user') {
       try {
         // Convert camelCase to snake_case for Supabase
         const dbFeedback = camelToSnake(feedback);

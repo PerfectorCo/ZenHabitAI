@@ -150,9 +150,9 @@ const App: React.FC = () => {
         let templates = fetchedTemplates;
         if (templates.length === 0) {
           templates = [
-            { id: 't1', title: language === 'vi' ? 'Kiểm tra Email' : 'Check Emails', category: 'Work', isRecurring: true, repeatDays: [1,2,3,4,5] },
-            { id: 't2', title: language === 'vi' ? 'Tập thể dục nhanh' : 'Quick Workout', category: 'Health', isRecurring: true, repeatDays: [1,3,5] },
-            { id: 't3', title: language === 'vi' ? 'Thời gian đọc sách' : 'Reading Time', category: 'Skills', isRecurring: true, repeatDays: [0,1,2,3,4,5,6] }
+            { id: `${userId}-t1`, title: language === 'vi' ? 'Kiểm tra Email' : 'Check Emails', category: 'Work', isRecurring: true, repeatDays: [1,2,3,4,5] },
+            { id: `${userId}-t2`, title: language === 'vi' ? 'Tập thể dục nhanh' : 'Quick Workout', category: 'Health', isRecurring: true, repeatDays: [1,3,5] },
+            { id: `${userId}-t3`, title: language === 'vi' ? 'Thời gian đọc sách' : 'Reading Time', category: 'Skills', isRecurring: true, repeatDays: [0,1,2,3,4,5,6] }
           ];
           for (const t of templates) {
             await StorageService.saveTaskTemplate(userId, t);
@@ -182,7 +182,10 @@ const App: React.FC = () => {
     fetchData();
   }, [isAuthenticated, language]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     StorageService.clearAll();
     setIsAuthenticated(false);
     setView('dashboard');
@@ -342,6 +345,66 @@ const App: React.FC = () => {
     await StorageService.deleteTask(id);
   };
 
+  const handleLogFocusSession = async (id: string, type: 'habit' | 'task' | 'general' | 'break', minutes: number) => {
+    const userId = StorageService.getUserId();
+
+    let goalTitle = '';
+    if (type === 'habit') {
+      goalTitle = habits.find(h => h.id === id)?.title || 'Habit';
+    } else if (type === 'task') {
+      goalTitle = tasks.find(t => t.id === id)?.title || 'Task';
+    } else if (type === 'general') {
+      goalTitle = t(`pomodoro.presets.${id}`);
+    } else {
+      goalTitle = t('pomodoro.break');
+    }
+
+    const newSession: FocusSession = {
+      id: Date.now().toString(),
+      userId,
+      goalTitle,
+      type: type === 'break' ? 'break' : 'focus',
+      durationMinutes: minutes,
+      timestamp: new Date().toISOString()
+    };
+
+    setFocusSessions(prev => [newSession, ...prev]);
+    await StorageService.saveFocusSession(userId, newSession);
+  };
+
+  const handleToggleHabitComplete = async (id: string) => {
+    const userId = StorageService.getUserId();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const updatedHabits = habits.map(h => {
+      if (h.id === id) {
+        const isCurrentlyCompleted = h.completedDates.includes(todayStr);
+        const newDates = isCurrentlyCompleted
+          ? h.completedDates.filter(d => d !== todayStr)
+          : [...h.completedDates, todayStr];
+
+        return { ...h, completedDates: newDates };
+      }
+      return h;
+    });
+    setHabits(updatedHabits);
+    const habit = updatedHabits.find(h => h.id === id);
+    if (habit) await StorageService.saveHabit(userId, habit);
+  };
+
+  const handleDeleteHabit = async (id: string) => {
+    setHabits(prev => prev.filter(h => h.id !== id));
+    await StorageService.deleteHabit(id);
+  };
+
+  const handleMarkGoalComplete = async (id: string, type: 'habit' | 'task' | 'general') => {
+    if (type === 'habit') {
+      await handleToggleHabitComplete(id);
+    } else if (type === 'task') {
+      await toggleTaskComplete(id);
+    }
+    // General goals don't have a 'complete' state in the DB beyond the session log
+  };
+
   if (!isAuthenticated) {
     return <Auth onLoginSuccess={(userId) => {
       StorageService.setSession(true, userId);
@@ -374,18 +437,18 @@ const App: React.FC = () => {
         categories={categories}
         templates={taskTemplates}
         onAddHabit={addHabit}
-        onToggleHabit={(id) => {}}
+        onToggleHabit={handleToggleHabitComplete}
         onAddLevelTask={addQuickTask}
         onUpdateTask={handleUpdateTask}
         onAddFromTemplate={addTemplateToTasks}
         onSaveTemplate={saveTaskAsTemplate}
         onDeleteTemplate={deleteTemplate}
-        onDeleteHabit={(id) => {}}
+        onDeleteHabit={handleDeleteHabit}
         onToggleTask={toggleTaskComplete}
         onSkipTask={handleSkipTask}
         onDeleteTask={deleteTask}
       />;
-      case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} onLogTime={() => {}} onMarkComplete={() => {}} />;
+      case 'pomodoro': return <PomodoroTimer habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} onLogTime={handleLogFocusSession} onMarkComplete={handleMarkGoalComplete} onNavigateToPricing={() => setView('pricing')} />;
       case 'analytics': return <Analytics habits={habits} tasks={tasks} sessions={focusSessions} profile={profile} onNavigateToPricing={() => setView('pricing')} />;
       case 'profile': return <Profile
         profile={profile}
