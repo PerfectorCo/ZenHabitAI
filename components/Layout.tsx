@@ -46,7 +46,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, userPro
               <Timer size={24} />
             </div>
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
-              ZenHabit AI
+              ZenHabit
             </h1>
           </div>
 

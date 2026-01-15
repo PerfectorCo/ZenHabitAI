@@ -23,8 +23,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
   const [addedIds, setAddedIds] = React.useState<number[]>([]);
   const { t, language } = useLanguage();
 
-  const fetchRecs = async (forceRefresh = false) => {
-
+  const fetchRecs = React.useCallback(async (forceRefresh = false) => {
     setLoadingAI(true);
     setAiIsReflecting(false);
 
@@ -60,11 +59,11 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
       StorageService.saveAIRecommendations(newCache);
     }
     setLoadingAI(false);
-  };
+  }, [habits, profile, language]);
 
-    React.useEffect(() => {
+  React.useEffect(() => {
     fetchRecs();
-  }, [language, profile.mainGoal]);
+  }, [fetchRecs]);
 
   const handleAddSuggestedHabit = (rec: Recommendation, index: number) => {
     if (rec.suggestedHabit) {
