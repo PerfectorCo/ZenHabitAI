@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle, FastForward, Undo2, Star, X, Pencil, Save, Leaf } from 'lucide-react';
+import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle, FastForward, Undo2, Star, X, Pencil, Save, Leaf, Clock } from 'lucide-react';
 import { Habit, Task, TaskTemplate } from '../types';
 import { useLanguage } from '../LanguageContext';
 
@@ -41,7 +41,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
   onSkipTask,
   onDeleteTask
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [newHabitTitle, setNewHabitTitle] = React.useState('');
   const [category, setCategory] = React.useState('Health');
   const [customCategory, setCustomCategory] = React.useState('');
@@ -57,6 +57,9 @@ const HabitManager: React.FC<HabitManagerProps> = ({
   const [editTitle, setEditTitle] = React.useState('');
   const [editRepeatDays, setEditRepeatDays] = React.useState<number[]>([]);
   const [editIsRecurring, setEditIsRecurring] = React.useState(false);
+
+  // Completed tasks history filter
+  const [completedTasksPeriod, setCompletedTasksPeriod] = React.useState<'day' | 'week' | 'month'>('day');
 
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
@@ -115,6 +118,77 @@ const HabitManager: React.FC<HabitManagerProps> = ({
 
   const completedTasks = tasks.filter(t => t.completed);
   const skippedTasks = tasks.filter(t => !t.completed && t.skippedDates?.includes(todayStr));
+
+  // Helper function to check if a date is within the specified period
+  const isDateInPeriod = (dateStr: string, period: 'day' | 'week' | 'month'): boolean => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (period === 'day') {
+      return dateStr === todayStr;
+    } else if (period === 'week') {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay());
+      return date >= weekStart && date <= today;
+    } else {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      return date >= monthStart && date <= today;
+    }
+  };
+
+  // Get completed tasks grouped by date for the selected period
+  const getCompletedTasksByPeriod = (): Array<{ date: string; tasks: Task[] }> => {
+    const completedTasksWithDates: Array<{ task: Task; date: string }> = [];
+
+    tasks.forEach(task => {
+      if (task.completedDates && task.completedDates.length > 0) {
+        task.completedDates.forEach(dateStr => {
+          if (isDateInPeriod(dateStr, completedTasksPeriod)) {
+            completedTasksWithDates.push({ task, date: dateStr });
+          }
+        });
+      }
+    });
+
+    // Group by date
+    const grouped = completedTasksWithDates.reduce((acc, item) => {
+      if (!acc[item.date]) {
+        acc[item.date] = [];
+      }
+      if (!acc[item.date].find(t => t.id === item.task.id)) {
+        acc[item.date].push(item.task);
+      }
+      return acc;
+    }, {} as Record<string, Task[]>);
+
+    // Convert to array and sort by date (newest first)
+    return Object.entries(grouped)
+      .map(([date, tasks]) => ({ date, tasks }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  const completedTasksByPeriod = getCompletedTasksByPeriod();
+
+  // Format date for display
+  const formatDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (dateStr === todayStr) {
+      return t('habits.completedTasks.today');
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return t('habits.completedTasks.yesterday');
+    } else {
+      return date.toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
@@ -323,6 +397,66 @@ const HabitManager: React.FC<HabitManagerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Completed Tasks History */}
+      <section className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <Clock className="text-emerald-500" size={24} /> {t('habits.completedTasks.title')}
+          </h2>
+          <div className="flex gap-2 bg-slate-50 p-1 rounded-xl">
+            {(['day', 'week', 'month'] as const).map(period => (
+              <button
+                key={period}
+                onClick={() => setCompletedTasksPeriod(period)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  completedTasksPeriod === period
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t(`habits.completedTasks.${period}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {completedTasksByPeriod.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            <CheckCircle2 size={48} className="mx-auto mb-4 opacity-30" />
+            <p className="font-medium">{t('habits.completedTasks.empty')}</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {completedTasksByPeriod.map(({ date, tasks }) => (
+              <div key={date} className="border border-slate-100 rounded-2xl p-6 space-y-3">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
+                    {formatDate(date)}
+                  </h3>
+                  <span className="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-full">
+                    {tasks.length} {tasks.length === 1 ? t('habits.completedTasks.task') : t('habits.completedTasks.tasks')}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {tasks.map(task => (
+                    <div
+                      key={`${task.id}-${date}`}
+                      className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors group"
+                    >
+                      <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
+                      <span className="flex-1 text-sm font-medium text-slate-700">{task.title}</span>
+                      {task.isRecurring && (
+                        <Repeat size={14} className="text-indigo-400 flex-shrink-0" title={t('habits.completedTasks.recurring')} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 };

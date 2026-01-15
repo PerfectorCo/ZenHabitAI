@@ -27,7 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
 
     setLoadingAI(true);
     setAiIsReflecting(false);
-    
+
     if (!forceRefresh) {
       const stored = StorageService.getStoredAIRecommendations();
       if (stored) {
@@ -44,15 +44,15 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
     }
 
     const recs = await getAIRecommendations(habits, profile, language);
-    
+
     if (recs && 'error' in recs) {
       setAiIsReflecting(true);
       setRecommendations(recs.fallbacks);
     } else if (recs && Array.isArray(recs)) {
       setRecommendations(recs);
-      
+
       const newCache: StoredAIRecommendations = {
-        recommendations: processedRecs,
+        recommendations: recs,
         timestamp: new Date().toISOString(),
         mainGoal: profile.mainGoal,
         language: language
@@ -73,7 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
     }
   };
 
-  const completedTodayCount = habits.filter(h => 
+  const completedTodayCount = habits.filter(h =>
     h.completedDates.some(d => d.split('T')[0] === new Date().toISOString().split('T')[0])
   ).length;
 
@@ -136,8 +136,8 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
               <Sparkles className="text-indigo-500" size={20} />
               {aiIsReflecting ? (language === 'vi' ? 'Trí tuệ vượt thời gian' : 'Timeless Wisdom') : t('dashboard.aiRecs')}
             </h2>
-            <button 
-              onClick={() => fetchRecs(true)} 
+            <button
+              onClick={() => fetchRecs(true)}
               disabled={loadingAI}
               className="p-2 transition-all disabled:opacity-50 text-indigo-600 hover:scale-110"
               title="Refresh recommendations"
@@ -151,8 +151,8 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
               <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
                 <Leaf size={18} className="text-indigo-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-indigo-700 font-medium italic">
-                  {language === 'vi' 
-                    ? "Zen Sensei đang chiêm nghiệm. Đây là những lời khuyên vượt thời gian dành cho bạn." 
+                  {language === 'vi'
+                    ? "Zen Sensei đang chiêm nghiệm. Đây là những lời khuyên vượt thời gian dành cho bạn."
                     : "The Zen Sensei is reflecting. Here is some timeless wisdom for your journey."}
                 </p>
               </div>
@@ -178,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
                     </span>
                   </div>
                   <p className="text-sm text-slate-500 leading-relaxed mb-4">{rec.reason}</p>
-                  
+
                   {rec.suggestedHabit && (
                     <div className="flex items-center justify-between pt-3 border-t border-slate-50">
                       <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
@@ -189,7 +189,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
                           <Check size={14} /> {t('dashboard.addedToList')}
                         </span>
                       ) : (
-                        <button 
+                        <button
                           onClick={() => handleAddSuggestedHabit(rec, i)}
                           className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
                         >
@@ -214,7 +214,7 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
                 <YAxis axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
-                <Tooltip 
+                <Tooltip
                   cursor={{fill: '#f8fafc'}}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />

@@ -169,7 +169,19 @@ export const translations = {
       saveTemplate: 'Save as template',
       removeFromPresets: 'Remove from presets',
       setRecurringTask: 'Set as recurring task',
-      skip: 'Paused for today'
+      skip: 'Paused for today',
+      completedTasks: {
+        title: 'Completed Tasks History',
+        day: 'Day',
+        week: 'Week',
+        month: 'Month',
+        today: 'Today',
+        yesterday: 'Yesterday',
+        task: 'task',
+        tasks: 'tasks',
+        recurring: 'Recurring task',
+        empty: 'No completed tasks found for this period.'
+      }
     },
     pomodoro: {
       completeTitle: 'This focus session has ended',
@@ -407,7 +419,19 @@ export const translations = {
       saveTemplate: 'Lưu thành mẫu',
       removeFromPresets: 'Xóa khỏi mẫu',
       setRecurringTask: 'Đặt thói quen định kỳ',
-      skip: 'Bỏ qua hôm nay'
+      skip: 'Bỏ qua hôm nay',
+      completedTasks: {
+        title: 'Lịch sử công việc đã hoàn thành',
+        day: 'Ngày',
+        week: 'Tuần',
+        month: 'Tháng',
+        today: 'Hôm nay',
+        yesterday: 'Hôm qua',
+        task: 'công việc',
+        tasks: 'công việc',
+        recurring: 'Công việc định kỳ',
+        empty: 'Không có công việc đã hoàn thành trong khoảng thời gian này.'
+      }
     },
     pomodoro: {
       completeTitle: 'Khoảng tập trung đã khép lại',
