@@ -1,14 +1,16 @@
 
 import React from 'react';
-import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle, FastForward, Undo2, Star, X, Pencil, Save, Leaf, Clock } from 'lucide-react';
-import { Habit, Task, TaskTemplate } from '../types';
+import { Plus, Check, Circle, Trash2, Calendar, Target, CheckCircle2, AlarmClock, BellRing, Repeat, Library, Zap, Edit3, CheckCircle, FastForward, Undo2, Star, X, Pencil, Save, Leaf, Clock, Sparkles } from 'lucide-react';
+import { Habit, Task, TaskTemplate, UserProfile, UserProfileContext, HabitSummary, ActivitySnapshot, AtomicHabitRecommendationsResult } from '../types';
 import { useLanguage } from '../LanguageContext';
+import { getAtomicHabitRecommendations } from '../services/geminiService';
 
 interface HabitManagerProps {
   habits: Habit[];
   tasks: Task[];
   categories: string[];
   templates: TaskTemplate[];
+  profile: UserProfile;
   onAddHabit: (title: string, category: string, reminderTime?: string) => void;
   onToggleHabit: (id: string) => void;
   onAddLevelTask: (title: string, isRecurring: boolean, repeatDays?: number[]) => void;
@@ -29,6 +31,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
   tasks,
   categories,
   templates,
+  profile,
   onAddHabit,
   onToggleHabit,
   onAddLevelTask,
@@ -61,9 +64,78 @@ const HabitManager: React.FC<HabitManagerProps> = ({
   // Completed tasks history filter
   const [completedTasksPeriod, setCompletedTasksPeriod] = React.useState<'day' | 'week' | 'month'>('day');
 
+  const [aiRecs, setAiRecs] = React.useState<AtomicHabitRecommendationsResult | null>(null);
+  const [loadingRecs, setLoadingRecs] = React.useState(false);
+
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const todayDay = today.getDay();
+
+  React.useEffect(() => {
+    if (habits.length === 0) {
+      setAiRecs(null);
+      return;
+    }
+
+    const load = async () => {
+      setLoadingRecs(true);
+      try {
+        const ctx: UserProfileContext = {
+          id: profile.email || 'anonymous',
+          name: profile.name,
+          language,
+          mainGoal: profile.mainGoal,
+          identityDescription: profile.bio,
+        };
+
+        const summaries: HabitSummary[] = habits.map((h) => ({
+          id: h.id,
+          title: h.title,
+          category: h.category,
+          completedDates: h.completedDates,
+          streak: h.streak,
+          targetCount: h.targetCount,
+          timeSpentMinutes: h.timeSpentMinutes,
+        }));
+
+        const allCompletionDates = habits.flatMap((h) => h.completedDates);
+        const lastCompletion = allCompletionDates.length
+          ? allCompletionDates.reduce((latest, d) => (d > latest ? d : latest), allCompletionDates[0])
+          : null;
+
+        let inactivityDays = 0;
+        if (lastCompletion) {
+          const lastDate = new Date(lastCompletion);
+          const diffMs = today.getTime() - lastDate.getTime();
+          inactivityDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        } else {
+          inactivityDays = 30;
+        }
+
+        const snapshot: ActivitySnapshot = {
+          recentCompletions: allCompletionDates.length,
+          focusMinutesLast7Days: 0,
+          inactivityDays,
+        };
+
+        const result = await getAtomicHabitRecommendations({
+          profile: ctx,
+          habits: summaries,
+          activity: snapshot,
+          lang: language === 'vi' ? 'vi' : 'en',
+        });
+
+        setAiRecs(result);
+      } catch (error) {
+        console.warn('HabitManager Atomic Habits recs error', error);
+        setAiRecs(null);
+      } finally {
+        setLoadingRecs(false);
+      }
+    };
+
+    load();
+  }, [habits, language, profile, today]);
 
   const handleHabitAdd = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -192,9 +264,35 @@ const HabitManager: React.FC<HabitManagerProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 pb-20">
-      <header>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('habits.header')}</h1>
-        <p className="text-slate-500">{t('habits.subtitle')}</p>
+      <header className="space-y-3">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-1">{t('habits.header')}</h1>
+          <p className="text-slate-500">{t('habits.subtitle')}</p>
+        </div>
+        {aiRecs && aiRecs.recommendations.length > 0 && (
+          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex gap-3 items-start">
+            <div className="mt-0.5">
+              <Sparkles className="text-indigo-500" size={18} />
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-[0.2em]">
+                {language === 'vi' ? 'Gợi ý hôm nay' : 'Today’s gentle suggestions'}
+              </p>
+              {loadingRecs ? (
+                <div className="h-10 bg-white rounded-xl animate-pulse" />
+              ) : (
+                <ul className="space-y-1">
+                  {aiRecs.recommendations.slice(0, 3).map((rec) => (
+                    <li key={rec.title} className="text-sm text-slate-700">
+                      <span className="font-semibold text-slate-900">{rec.title}:</span>{' '}
+                      <span>{rec.microAction}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Habit Creation */}

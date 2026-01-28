@@ -410,6 +410,7 @@ const App: React.FC = () => {
         tasks={tasks}
         categories={categories}
         templates={taskTemplates}
+        profile={profile}
         onAddHabit={addHabit}
         onToggleHabit={handleToggleHabitComplete}
         onAddLevelTask={addQuickTask}

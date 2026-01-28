@@ -1,8 +1,18 @@
 
 import React from 'react';
-import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, AlertCircle, Leaf, BarChart3 } from 'lucide-react';
-import { Habit, Task, Recommendation, UserProfile, StoredAIRecommendations } from '../types';
-import { getAIRecommendations } from '../services/geminiService';
+import { Sparkles, CheckCircle2, Flame, Clock, PlusCircle, Check, RefreshCw, Leaf, BarChart3, AlertCircle } from 'lucide-react';
+import {
+  Habit,
+  Task,
+  Recommendation,
+  UserProfile,
+  StoredAIRecommendations,
+  UserProfileContext,
+  HabitSummary,
+  ActivitySnapshot,
+  ZenSenseiInsight,
+} from '../types';
+import { getAtomicHabitRecommendations, getZenSenseiInsight } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '../LanguageContext';
 import { StorageService } from '../services/storageService';
@@ -21,7 +31,60 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
   const [loadingAI, setLoadingAI] = React.useState(true);
   const [aiIsReflecting, setAiIsReflecting] = React.useState(false);
   const [addedIds, setAddedIds] = React.useState<number[]>([]);
+  const [zenInsight, setZenInsight] = React.useState<ZenSenseiInsight | null>(null);
+  const [loadingInsight, setLoadingInsight] = React.useState(false);
   const { t, language } = useLanguage();
+
+  const buildProfileContext = React.useCallback((): UserProfileContext => {
+    return {
+      id: profile.email || 'anonymous',
+      name: profile.name,
+      language,
+      mainGoal: profile.mainGoal,
+      identityDescription: profile.bio,
+    };
+  }, [profile, language]);
+
+  const buildHabitSummaries = React.useCallback((): HabitSummary[] => {
+    return habits.map((h) => ({
+      id: h.id,
+      title: h.title,
+      category: h.category,
+      completedDates: h.completedDates,
+      streak: h.streak,
+      targetCount: h.targetCount,
+      timeSpentMinutes: h.timeSpentMinutes,
+    }));
+  }, [habits]);
+
+  const buildActivitySnapshot = React.useCallback((): ActivitySnapshot => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+
+    const allCompletionDates = habits.flatMap((h) => h.completedDates);
+    const recentCompletions = allCompletionDates.filter((d) => d >= sevenDaysAgo.toISOString().split('T')[0]).length;
+
+    const lastCompletion = allCompletionDates.length
+      ? allCompletionDates.reduce((latest, d) => (d > latest ? d : latest), allCompletionDates[0])
+      : null;
+
+    let inactivityDays = 0;
+    if (lastCompletion) {
+      const lastDate = new Date(lastCompletion);
+      const diffMs = today.getTime() - lastDate.getTime();
+      inactivityDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    } else {
+      inactivityDays = 30;
+    }
+
+    return {
+      recentCompletions,
+      focusMinutesLast7Days: 0,
+      inactivityDays,
+    };
+  }, [habits]);
 
   const fetchRecs = React.useCallback(async (forceRefresh = false) => {
     setLoadingAI(true);
@@ -42,28 +105,73 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
       }
     }
 
-    const recs = await getAIRecommendations(habits, profile, language);
+    try {
+      const ctx: UserProfileContext = buildProfileContext();
+      const habitSummaries = buildHabitSummaries();
+      const activity = buildActivitySnapshot();
+      const atomic = await getAtomicHabitRecommendations({
+        profile: ctx,
+        habits: habitSummaries,
+        activity,
+        lang: language === 'vi' ? 'vi' : 'en',
+      });
 
-    if (recs && 'error' in recs) {
-      setAiIsReflecting(true);
-      setRecommendations(recs.fallbacks);
-    } else if (recs && Array.isArray(recs)) {
-      setRecommendations(recs);
+      const mapped: Recommendation[] = (atomic.recommendations || []).map((rec) => ({
+        title: rec.title,
+        reason: rec.explanation,
+        priority: rec.priority,
+        suggestedHabit: {
+          title: rec.microAction,
+          category: profile.mainGoal || 'Mindset',
+        },
+      }));
+
+      setRecommendations(mapped);
 
       const newCache: StoredAIRecommendations = {
-        recommendations: recs,
+        recommendations: mapped,
         timestamp: new Date().toISOString(),
         mainGoal: profile.mainGoal,
-        language: language
+        language: language,
       };
       StorageService.saveAIRecommendations(newCache);
+    } catch (error) {
+      console.warn('Atomic Habits recommendations fallback', error);
+      setAiIsReflecting(true);
+      const fallbacks = getStaticFallbacks(profile.mainGoal || '', language === 'vi' ? 'vi' : 'en');
+      setRecommendations(fallbacks);
+    } finally {
+      setLoadingAI(false);
     }
-    setLoadingAI(false);
-  }, [habits, profile, language]);
+  }, [buildActivitySnapshot, buildHabitSummaries, buildProfileContext, language, profile.mainGoal]);
 
   React.useEffect(() => {
     fetchRecs();
   }, [fetchRecs]);
+
+  React.useEffect(() => {
+    const loadInsight = async () => {
+      setLoadingInsight(true);
+      try {
+        const ctx = buildProfileContext();
+        const activity = buildActivitySnapshot();
+        const insight = await getZenSenseiInsight({
+          profile: ctx,
+          activity,
+          insightType: 'daily',
+          lang: language === 'vi' ? 'vi' : 'en',
+        });
+        setZenInsight(insight);
+      } catch (error) {
+        console.warn('Zen Sensei insight fallback', error);
+        setZenInsight(null);
+      } finally {
+        setLoadingInsight(false);
+      }
+    };
+
+    loadInsight();
+  }, [buildActivitySnapshot, buildProfileContext, language]);
 
   const handleAddSuggestedHabit = (rec: Recommendation, index: number) => {
     if (rec.suggestedHabit) {
@@ -203,14 +311,44 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
           </div>
         </section>
 
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-900">{t('dashboard.aiInsights')}</h2>
+        <section className="space-y-4">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="text-emerald-500" size={18} />
+              <h2 className="text-sm font-bold text-slate-900 tracking-wide">
+                {language === 'vi' ? 'Zen Sensei' : 'Zen Sensei'}
+              </h2>
+            </div>
+            {loadingInsight ? (
+              <div className="h-20 bg-slate-50 rounded-2xl animate-pulse" />
+            ) : zenInsight ? (
+              <div className="space-y-1">
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                  {zenInsight.title}
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  {zenInsight.message}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                {language === 'vi'
+                  ? 'Mỗi ngày là một cơ hội để quay lại với những thói quen nhỏ.'
+                  : 'Each day is a chance to gently return to your smallest habits.'}
+              </p>
+            )}
           </div>
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-[320px]">
+
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-[260px]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <BarChart3 className="text-indigo-500" size={18} />
+                {t('dashboard.aiInsights')}
+              </h3>
+            </div>
             {chartData.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center px-6">
-                <BarChart3 size={48} className="text-slate-300 mb-4 opacity-30" />
+                <BarChart3 size={40} className="text-slate-300 mb-4 opacity-30" />
                 <p className="text-slate-400 font-medium text-sm">
                   {language === 'vi'
                     ? 'Chưa có dữ liệu thói quen để hiển thị. Hãy bắt đầu thêm thói quen của bạn!'
@@ -221,10 +359,10 @@ const Dashboard: React.FC<DashboardProps> = ({ habits, tasks, profile, onAddHabi
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
-                  <YAxis axisLine={false} tickLine={false} fontSize={12} tick={{fill: '#94a3b8'}} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} tick={{ fill: '#94a3b8' }} />
+                  <YAxis axisLine={false} tickLine={false} fontSize={12} tick={{ fill: '#94a3b8' }} />
                   <Tooltip
-                    cursor={{fill: '#f8fafc'}}
+                    cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                   <Bar dataKey="completions" fill="#6366f1" radius={[4, 4, 0, 0]} />
