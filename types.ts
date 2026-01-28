@@ -93,3 +93,43 @@ export interface StoredAIInsights {
 }
 
 export type ViewType = 'dashboard' | 'habits' | 'pomodoro' | 'analytics' | 'profile' | 'onboarding' | 'feedback';
+
+// Atomic Habits AI – shared context and contracts
+
+export interface UserProfileContext {
+  id: string;
+  name?: string;
+  language: string;
+  mainGoal?: string;
+  identityDescription?: string;
+}
+
+export interface HabitSummary {
+  id: string;
+  title: string;
+  category?: string;
+  completedDates: string[];
+  streak: number;
+  targetCount?: number;
+  timeSpentMinutes?: number;
+}
+
+export interface ActivitySnapshot {
+  recentCompletions: number;
+  focusMinutesLast7Days: number;
+  inactivityDays: number;
+}
+
+export type RecommendationPriority = 'low' | 'medium' | 'high';
+
+export interface AtomicHabitRecommendation {
+  title: string;
+  microAction: string;
+  explanation: string;
+  priority: RecommendationPriority;
+}
+
+export interface AtomicHabitRecommendationsResult {
+  recommendations: AtomicHabitRecommendation[];
+}
+
