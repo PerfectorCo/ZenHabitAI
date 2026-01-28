@@ -1,6 +1,16 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Habit, Task, Recommendation, UserProfile, FocusSession } from "../types";
+import {
+  Habit,
+  Task,
+  Recommendation,
+  UserProfile,
+  FocusSession,
+  UserProfileContext,
+  HabitSummary,
+  ActivitySnapshot,
+  AtomicHabitRecommendationsResult,
+} from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -42,6 +52,135 @@ const getStaticFallbacks = (goal: string, lang: 'en' | 'vi'): Recommendation[] =
 
   const key = Object.keys(fallbacks).find(k => goal.toLowerCase().includes(k)) || 'prod';
   return fallbacks[key];
+};
+
+type AtomicHabitsLang = "en" | "vi";
+
+interface AtomicHabitRecommendationsArgs {
+  profile: UserProfileContext;
+  habits: HabitSummary[];
+  activity: ActivitySnapshot;
+  lang?: AtomicHabitsLang;
+  signal?: AbortSignal;
+}
+
+export const getAtomicHabitRecommendations = async (
+  args: AtomicHabitRecommendationsArgs,
+): Promise<AtomicHabitRecommendationsResult> => {
+  const { profile, habits, activity, lang = "en" } = args;
+
+  const isVi = lang === "vi";
+  const habitsSummary = habits.map((h) => ({
+    id: h.id,
+    title: h.title,
+    category: h.category ?? "",
+    streak: h.streak,
+    completedDates: h.completedDates,
+    targetCount: h.targetCount ?? null,
+    timeSpentMinutes: h.timeSpentMinutes ?? null,
+  }));
+
+  const prompt = `
+You are ZenHabit AI, an Atomic Habits–aligned assistant.
+
+User profile:
+- id: ${profile.id}
+- name: ${profile.name ?? ""}
+- main goal: ${profile.mainGoal ?? ""}
+- identity: ${profile.identityDescription ?? ""}
+- language: ${lang === "vi" ? "Vietnamese" : "English"}
+
+Habit summary (for context only): ${JSON.stringify(habitsSummary)}
+
+Recent activity snapshot:
+- recentCompletions: ${activity.recentCompletions}
+- focusMinutesLast7Days: ${activity.focusMinutesLast7Days}
+- inactivityDays: ${activity.inactivityDays}
+
+TASK:
+- Propose up to 3 tiny habits the user can do TODAY, each taking at most 10 minutes.
+- Apply Atomic Habits laws: Make it Obvious, Make it Attractive, Make it Easy.
+- Focus on *returning* and consistency, never on guilt or optimization.
+
+TONE RULES (MANDATORY):
+- Calm, reflective, non-urgent.
+- No shame, no judgment, no pressure.
+- No hustle-culture or productivity jargon.
+- Output language: ${isVi ? "Vietnamese" : "English"}.
+
+OUTPUT FORMAT:
+Return ONLY valid JSON matching this schema:
+{
+  "recommendations": [
+    {
+      "title": "short title",
+      "microAction": "one concrete action the user can do today in <= 10 minutes",
+      "explanation": "why this fits their current situation in a gentle tone",
+      "priority": "low" | "medium" | "high"
+    }
+  ]
+}
+
+Rules:
+- Max 3 items in the recommendations array.
+- Each microAction must describe something the user can start immediately today.
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            recommendations: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  microAction: { type: Type.STRING },
+                  explanation: { type: Type.STRING },
+                  priority: {
+                    type: Type.STRING,
+                    enum: ["low", "medium", "high"],
+                  },
+                },
+                required: ["title", "microAction", "explanation", "priority"],
+              },
+            },
+          },
+          required: ["recommendations"],
+        },
+      },
+    });
+
+    const raw = JSON.parse(response.text || "{}") as Partial<AtomicHabitRecommendationsResult>;
+    const list = Array.isArray(raw.recommendations) ? raw.recommendations : [];
+
+    const normalized = list
+      .slice(0, 3)
+      .filter(
+        (item): item is AtomicHabitRecommendationsResult["recommendations"][number] =>
+          typeof item?.title === "string" &&
+          typeof item?.microAction === "string" &&
+          typeof item?.explanation === "string",
+      )
+      .map((item) => ({
+        title: item.title,
+        microAction: item.microAction,
+        explanation: item.explanation,
+        priority:
+          item.priority === "low" || item.priority === "high" ? item.priority : ("medium" as const),
+      }));
+
+  return { recommendations: normalized };
+  } catch (error) {
+    console.warn("Atomic Habits AI Recommendations error:", error);
+    return { recommendations: [] };
+  }
 };
 
 export const getAIRecommendations = async (habits: Habit[], profile: UserProfile, lang: 'en' | 'vi' = 'en'): Promise<Recommendation[] | { error: string, fallbacks: Recommendation[] }> => {

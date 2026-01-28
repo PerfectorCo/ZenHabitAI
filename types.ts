@@ -132,4 +132,3 @@ export interface AtomicHabitRecommendation {
 export interface AtomicHabitRecommendationsResult {
   recommendations: AtomicHabitRecommendation[];
 }
-
