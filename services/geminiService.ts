@@ -10,6 +10,7 @@ import {
   HabitSummary,
   ActivitySnapshot,
   AtomicHabitRecommendationsResult,
+  ZenSenseiInsight,
 } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -64,12 +65,24 @@ interface AtomicHabitRecommendationsArgs {
   signal?: AbortSignal;
 }
 
+const buildAtomicHabitsToneBlock = (lang: AtomicHabitsLang): string => {
+  const label = lang === "vi" ? "Vietnamese (calm, non-teaching)" : "English (reflective, non-optimizing)";
+
+  return `
+GLOBAL TONE RULES (MANDATORY):
+- Calm, reflective, non-urgent.
+- No shame, no judgment, no pressure.
+- No productivity or hustle-culture jargon.
+- Focus on returning, not perfection.
+- Output language: ${label}.
+`;
+};
+
 export const getAtomicHabitRecommendations = async (
   args: AtomicHabitRecommendationsArgs,
 ): Promise<AtomicHabitRecommendationsResult> => {
   const { profile, habits, activity, lang = "en" } = args;
 
-  const isVi = lang === "vi";
   const habitsSummary = habits.map((h) => ({
     id: h.id,
     title: h.title,
@@ -88,7 +101,6 @@ User profile:
 - name: ${profile.name ?? ""}
 - main goal: ${profile.mainGoal ?? ""}
 - identity: ${profile.identityDescription ?? ""}
-- language: ${lang === "vi" ? "Vietnamese" : "English"}
 
 Habit summary (for context only): ${JSON.stringify(habitsSummary)}
 
@@ -102,11 +114,7 @@ TASK:
 - Apply Atomic Habits laws: Make it Obvious, Make it Attractive, Make it Easy.
 - Focus on *returning* and consistency, never on guilt or optimization.
 
-TONE RULES (MANDATORY):
-- Calm, reflective, non-urgent.
-- No shame, no judgment, no pressure.
-- No hustle-culture or productivity jargon.
-- Output language: ${isVi ? "Vietnamese" : "English"}.
+${buildAtomicHabitsToneBlock(lang)}
 
 OUTPUT FORMAT:
 Return ONLY valid JSON matching this schema:
@@ -176,10 +184,102 @@ Rules:
           item.priority === "low" || item.priority === "high" ? item.priority : ("medium" as const),
       }));
 
-  return { recommendations: normalized };
+    return { recommendations: normalized };
   } catch (error) {
     console.warn("Atomic Habits AI Recommendations error:", error);
     return { recommendations: [] };
+  }
+};
+
+interface ZenSenseiArgs {
+  profile: UserProfileContext;
+  activity: ActivitySnapshot;
+  insightType: "daily" | "weekly" | "monthly";
+  lang?: AtomicHabitsLang;
+  signal?: AbortSignal;
+}
+
+export const getZenSenseiInsight = async (
+  args: ZenSenseiArgs,
+): Promise<ZenSenseiInsight> => {
+  const { profile, activity, insightType, lang = "en" } = args;
+  const isVi = lang === "vi";
+
+  const prompt = `
+You are Zen Sensei, a quiet, grounded guide.
+
+User profile:
+- id: ${profile.id}
+- name: ${profile.name ?? ""}
+- main goal: ${profile.mainGoal ?? ""}
+- identity: ${profile.identityDescription ?? ""}
+
+Recent activity snapshot:
+- recentCompletions: ${activity.recentCompletions}
+- focusMinutesLast7Days: ${activity.focusMinutesLast7Days}
+- inactivityDays: ${activity.inactivityDays}
+
+Insight type: ${insightType}
+
+${buildAtomicHabitsToneBlock(lang)}
+
+ADDITIONAL ZEN SENSEI RULES:
+- Treat missing one day as normal.
+- When inactivityDays >= 2, gently invite the user back without guilt.
+- Do not use "should" or "must".
+- No lists, bullets, emojis, or markdown.
+
+OUTPUT FORMAT:
+Return ONLY valid JSON matching this schema:
+{
+  "title": "short title",
+  "message": "single cohesive paragraph, max ~400 characters"
+}
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            message: { type: Type.STRING },
+          },
+          required: ["title", "message"],
+        },
+      },
+    });
+
+    const raw = JSON.parse(response.text || "{}") as Partial<ZenSenseiInsight>;
+    const title = typeof raw.title === "string" && raw.title.trim().length > 0
+      ? raw.title.trim()
+      : isVi ? "Gợi ý nhẹ nhàng" : "A gentle reflection";
+
+    let message = typeof raw.message === "string" ? raw.message.trim() : "";
+    if (message.length > 400) {
+      message = message.slice(0, 400).trim();
+    }
+    message = message.replace(/[*_#\-•]/g, "").trim();
+
+    if (!message) {
+      message = isVi
+        ? "Mỗi lần quay lại là một cơ hội mới để bắt đầu nhẹ nhàng từ đầu."
+        : "Each return is a new chance to begin gently from where you are.";
+    }
+
+    return { title, message };
+  } catch (error) {
+    console.warn("Zen Sensei insight error:", error);
+    return {
+      title: isVi ? "Khoảnh khắc tạm dừng" : "A quiet pause",
+      message: isVi
+        ? "Zen Sensei đang chiêm nghiệm. Bạn có thể bắt đầu lại hôm nay bằng một hành động nhỏ mà không cần vội vàng."
+        : "The Zen Sensei is reflecting. You can begin again today with one small action, without any hurry.",
+    };
   }
 };
 

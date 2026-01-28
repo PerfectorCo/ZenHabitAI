@@ -132,3 +132,9 @@ export interface AtomicHabitRecommendation {
 export interface AtomicHabitRecommendationsResult {
   recommendations: AtomicHabitRecommendation[];
 }
+
+export interface ZenSenseiInsight {
+  title: string;
+  message: string;
+}
+
