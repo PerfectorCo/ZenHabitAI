@@ -162,6 +162,13 @@ export interface AtomicHabitRecommendationsResult {
  */
 export type AtomicHabitRecommendationList = AtomicHabitRecommendation[];
 
+/**
+ * Zen Sensei insight payload.
+ *
+ * Behavioural contract:
+ * - Exactly one message string per call.
+ * - Intended to be short and digestible in UI (roughly <= 400 characters).
+ */
 export interface ZenSenseiInsight {
   title: string;
   message: string;
