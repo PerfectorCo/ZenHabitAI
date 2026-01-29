@@ -212,13 +212,13 @@ interface ZenSenseiArgs {
   signal?: AbortSignal;
 }
 
-export const getZenSenseiInsight = async (
-  args: ZenSenseiArgs,
-): Promise<ZenSenseiInsight> => {
-  const { profile, activity, insightType, lang = "en" } = args;
-  const isVi = lang === "vi";
-
-  const prompt = `
+const buildZenSenseiInsightPrompt = (
+  profile: UserProfileContext,
+  activity: ActivitySnapshot,
+  insightType: "daily" | "weekly" | "monthly",
+  lang: AtomicHabitsLang,
+): string => {
+  return `
 You are Zen Sensei, a quiet, grounded guide.
 
 User profile:
@@ -249,6 +249,32 @@ Return ONLY valid JSON matching this schema:
   "message": "single cohesive paragraph, max ~400 characters"
 }
 `;
+};
+
+const getZenSenseiFallback = (lang: AtomicHabitsLang): ZenSenseiInsight =>
+  lang === "vi"
+    ? {
+        title: "Khoảnh khắc tạm dừng",
+        message:
+          "Zen Sensei đang chiêm nghiệm. Bạn có thể bắt đầu lại hôm nay bằng một hành động nhỏ mà không cần vội vàng.",
+      }
+    : {
+        title: "A quiet pause",
+        message:
+          "The Zen Sensei is reflecting. You can begin again today with one small action, without any hurry.",
+      };
+
+export const getZenSenseiInsight = async (
+  args: ZenSenseiArgs,
+): Promise<ZenSenseiInsight> => {
+  const { profile, activity, insightType, lang = "en" } = args;
+  const isVi = lang === "vi";
+
+  if (args.signal?.aborted) {
+    return getZenSenseiFallback(lang);
+  }
+
+  const prompt = buildZenSenseiInsightPrompt(profile, activity, insightType, lang);
 
   try {
     const response = await ai.models.generateContent({
@@ -287,12 +313,7 @@ Return ONLY valid JSON matching this schema:
     return { title, message };
   } catch (error) {
     console.warn("Zen Sensei insight error:", error);
-    return {
-      title: isVi ? "Khoảnh khắc tạm dừng" : "A quiet pause",
-      message: isVi
-        ? "Zen Sensei đang chiêm nghiệm. Bạn có thể bắt đầu lại hôm nay bằng một hành động nhỏ mà không cần vội vàng."
-        : "The Zen Sensei is reflecting. You can begin again today with one small action, without any hurry.",
-    };
+    return getZenSenseiFallback(lang);
   }
 };
 
