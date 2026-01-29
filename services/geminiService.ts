@@ -78,11 +78,12 @@ GLOBAL TONE RULES (MANDATORY):
 `;
 };
 
-export const getAtomicHabitRecommendations = async (
-  args: AtomicHabitRecommendationsArgs,
-): Promise<AtomicHabitRecommendationsResult> => {
-  const { profile, habits, activity, lang = "en" } = args;
-
+const buildAtomicHabitRecommendationsPrompt = (
+  profile: UserProfileContext,
+  habits: HabitSummary[],
+  activity: ActivitySnapshot,
+  lang: AtomicHabitsLang,
+): string => {
   const habitsSummary = habits.map((h) => ({
     id: h.id,
     title: h.title,
@@ -93,7 +94,7 @@ export const getAtomicHabitRecommendations = async (
     timeSpentMinutes: h.timeSpentMinutes ?? null,
   }));
 
-  const prompt = `
+  return `
 You are ZenHabit AI, an Atomic Habits–aligned assistant.
 
 User profile:
@@ -133,6 +134,18 @@ Rules:
 - Max 3 items in the recommendations array.
 - Each microAction must describe something the user can start immediately today.
 `;
+};
+
+export const getAtomicHabitRecommendations = async (
+  args: AtomicHabitRecommendationsArgs,
+): Promise<AtomicHabitRecommendationsResult> => {
+  const { profile, habits, activity, lang = "en" } = args;
+
+  if (args.signal?.aborted) {
+    return { recommendations: [] };
+  }
+
+  const prompt = buildAtomicHabitRecommendationsPrompt(profile, habits, activity, lang);
 
   try {
     const response = await ai.models.generateContent({
@@ -294,7 +307,7 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
   const totalHistoricalCompletions = habits.reduce((acc, h) => acc + h.completedDates.length, 0);
   const joinedDate = new Date(profile.joinedDate);
   const daysSinceJoined = Math.floor((new Date().getTime() - joinedDate.getTime()) / (1000 * 3600 * 24));
-  
+
   const isNewUser = daysSinceJoined < 3 && totalHistoricalCompletions === 0;
   const focusArea = profile.mainGoal || 'General growth';
 
@@ -308,14 +321,14 @@ export const getAIRecommendations = async (habits: Habit[], profile: UserProfile
   Language: ${lang === 'vi' ? 'Vietnamese' : 'English'}
 
   Your Task:
-  Provide 3 highly personalized habit recommendations. 
-  
+  Provide 3 highly personalized habit recommendations.
+
   Zen Tone Rules (STRICT):
   1. Use calm, non-judgmental, and gentle language.
   2. NO emojis, NO bullet points, NO special characters like # or *.
   3. Tone: Like a quiet mentor. Supportive but never pushy.
   4. Language: Natural, conversational ${lang === 'vi' ? 'Vietnamese' : 'English'}.
-  
+
   Recommendation Logic:
   - If BRAND NEW: Suggest foundational habits for ${focusArea}. Keep them "Atomic" (easy to start).
   - If EXISTING: Suggest habits that complement their routine or fill gaps for ${focusArea}.
@@ -372,7 +385,7 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
   const habitsSummary = habits.map(h => ({ title: h.title, completions: h.completedDates.length, currentStreak: h.streak }));
   const tasksSummary = tasks.map(t => ({ title: t.title, completed: t.completed }));
   const totalFocus = sessions.filter(s => s.type === 'focus').reduce((acc, s) => acc + s.durationMinutes, 0);
-  
+
   const focusArea = profile.mainGoal || 'their goals';
 
   const prompt = `Contextual Analysis for User: ${profile.name}
@@ -385,11 +398,11 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
 
   Your Task:
   As a 'Zen Sensei', provide a brief insight.
-  
+
   Zen Language Rules (MANDATORY):
   1. MAX 3 SENTENCES.
   2. NO bullet points, NO numbers, NO emojis, NO special symbols.
-  3. Tone: Calm, reflective, non-judgmental. 
+  3. Tone: Calm, reflective, non-judgmental.
   4. Response must be strictly in ${lang === 'vi' ? 'Vietnamese' : 'English'}.`;
 
   try {
@@ -401,7 +414,7 @@ export const getAIInsights = async (habits: Habit[], tasks: Task[], sessions: Fo
         topP: 0.8,
       }
     });
-    
+
     let result = response.text || "";
     result = result.replace(/[*_#\-•]/g, '').trim();
     return result;

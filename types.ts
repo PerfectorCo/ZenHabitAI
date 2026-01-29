@@ -94,8 +94,10 @@ export interface StoredAIInsights {
 
 export type ViewType = 'dashboard' | 'habits' | 'pomodoro' | 'analytics' | 'profile' | 'onboarding' | 'feedback';
 
-// Atomic Habits AI – shared context and contracts
-
+/**
+ * Atomic Habits AI – shared context for AI contracts.
+ * This shape is designed to be reusable across multiple AI features.
+ */
 export interface UserProfileContext {
   id: string;
   name?: string;
@@ -104,6 +106,10 @@ export interface UserProfileContext {
   identityDescription?: string;
 }
 
+/**
+ * Lightweight summary of a habit for AI prompts.
+ * Mirrors the persisted habit shape but keeps only fields needed for AI.
+ */
 export interface HabitSummary {
   id: string;
   title: string;
@@ -114,14 +120,24 @@ export interface HabitSummary {
   timeSpentMinutes?: number;
 }
 
+/**
+ * Aggregated activity metrics used to contextualize AI responses.
+ */
 export interface ActivitySnapshot {
   recentCompletions: number;
   focusMinutesLast7Days: number;
   inactivityDays: number;
 }
 
+/**
+ * Priority for a recommendation, encoded as a small, explicit union.
+ */
 export type RecommendationPriority = 'low' | 'medium' | 'high';
 
+/**
+ * Core Atomic Habits–aligned recommendation unit.
+ * Each microAction should take ≤ 10 minutes and be actionable today.
+ */
 export interface AtomicHabitRecommendation {
   title: string;
   microAction: string;
@@ -129,12 +145,24 @@ export interface AtomicHabitRecommendation {
   priority: RecommendationPriority;
 }
 
+/**
+ * Wrapper for Atomic Habits recommendations.
+ *
+ * Behavioural contract:
+ * - The service enforces a maximum of three recommendations per call.
+ * - Callers should never rely on more than three items in the array.
+ */
 export interface AtomicHabitRecommendationsResult {
   recommendations: AtomicHabitRecommendation[];
 }
+
+/**
+ * Convenience alias for the bounded recommendations list.
+ * The runtime service guarantees this list is truncated to at most three items.
+ */
+export type AtomicHabitRecommendationList = AtomicHabitRecommendation[];
 
 export interface ZenSenseiInsight {
   title: string;
   message: string;
 }
-
