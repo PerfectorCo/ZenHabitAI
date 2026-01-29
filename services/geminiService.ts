@@ -12,11 +12,15 @@ import {
   AtomicHabitRecommendationsResult,
   ZenSenseiInsight,
 } from "../types";
+import {
+  validateAtomicHabitRecommendationsResult,
+  validateZenSenseiInsight,
+} from "./aiResponseValidation";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Timeless Wisdom Fallbacks for when the AI is "reflecting" (Quota hit)
-const getStaticFallbacks = (goal: string, lang: 'en' | 'vi'): Recommendation[] => {
+export const getStaticFallbacks = (goal: string, lang: 'en' | 'vi'): Recommendation[] => {
   const isVi = lang === 'vi';
   const fallbacks: Record<string, Recommendation[]> = {
     prod: [
@@ -199,26 +203,8 @@ export const getAtomicHabitRecommendations = async (
       },
     });
 
-    const raw = JSON.parse(response.text || "{}") as Partial<AtomicHabitRecommendationsResult>;
-    const list = Array.isArray(raw.recommendations) ? raw.recommendations : [];
-
-    const normalized = list
-      .slice(0, 3)
-      .filter(
-        (item): item is AtomicHabitRecommendationsResult["recommendations"][number] =>
-          typeof item?.title === "string" &&
-          typeof item?.microAction === "string" &&
-          typeof item?.explanation === "string",
-      )
-      .map((item) => ({
-        title: item.title,
-        microAction: item.microAction,
-        explanation: item.explanation,
-        priority:
-          item.priority === "low" || item.priority === "high" ? item.priority : ("medium" as const),
-      }));
-
-    return { recommendations: normalized };
+    const parsed: unknown = JSON.parse(response?.text ?? "{}");
+    return validateAtomicHabitRecommendationsResult(parsed);
   } catch (error) {
     console.warn("Atomic Habits AI Recommendations error:", error);
     return { recommendations: [] };
@@ -280,7 +266,6 @@ export const getZenSenseiInsight = async (
   args: ZenSenseiArgs,
 ): Promise<ZenSenseiInsight> => {
   const { profile, activity, insightType, lang = "en" } = args;
-  const isVi = lang === "vi";
 
   if (args.signal?.aborted) {
     return getZenSenseiFallback(lang);
@@ -305,24 +290,8 @@ export const getZenSenseiInsight = async (
       },
     });
 
-    const raw = JSON.parse(response.text || "{}") as Partial<ZenSenseiInsight>;
-    const title = typeof raw.title === "string" && raw.title.trim().length > 0
-      ? raw.title.trim()
-      : isVi ? "Gợi ý nhẹ nhàng" : "A gentle reflection";
-
-    let message = typeof raw.message === "string" ? raw.message.trim() : "";
-    if (message.length > 400) {
-      message = message.slice(0, 400).trim();
-    }
-    message = message.replace(/[*_#\-•]/g, "").trim();
-
-    if (!message) {
-      message = isVi
-        ? "Mỗi lần quay lại là một cơ hội mới để bắt đầu nhẹ nhàng từ đầu."
-        : "Each return is a new chance to begin gently from where you are.";
-    }
-
-    return { title, message };
+    const parsed: unknown = JSON.parse(response?.text ?? "{}");
+    return validateZenSenseiInsight(parsed, getZenSenseiFallback(lang));
   } catch (error) {
     console.warn("Zen Sensei insight error:", error);
     return getZenSenseiFallback(lang);

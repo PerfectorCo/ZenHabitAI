@@ -135,7 +135,7 @@ const HabitManager: React.FC<HabitManagerProps> = ({
     };
 
     load();
-  }, [habits, language, profile, today]);
+  }, [habits, language, profile]);
 
   const handleHabitAdd = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -281,11 +281,14 @@ const HabitManager: React.FC<HabitManagerProps> = ({
               {loadingRecs ? (
                 <div className="h-10 bg-white rounded-xl animate-pulse" />
               ) : (
-                <ul className="space-y-1">
-                  {aiRecs.recommendations.slice(0, 3).map((rec) => (
-                    <li key={rec.title} className="text-sm text-slate-700">
+                <ul className="space-y-2">
+                  {aiRecs.recommendations.slice(0, 3).map((rec, i) => (
+                    <li key={`${rec.title}-${i}`} className="text-sm text-slate-700">
                       <span className="font-semibold text-slate-900">{rec.title}:</span>{' '}
                       <span>{rec.microAction}</span>
+                      {rec.explanation && (
+                        <p className="text-slate-500 text-xs mt-0.5 ml-0">{rec.explanation}</p>
+                      )}
                     </li>
                   ))}
                 </ul>

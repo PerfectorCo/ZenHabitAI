@@ -12,7 +12,7 @@ import {
   ActivitySnapshot,
   ZenSenseiInsight,
 } from '../types';
-import { getAtomicHabitRecommendations, getZenSenseiInsight } from '../services/geminiService';
+import { getAtomicHabitRecommendations, getZenSenseiInsight, getStaticFallbacks } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLanguage } from '../LanguageContext';
 import { StorageService } from '../services/storageService';
