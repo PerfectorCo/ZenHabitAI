@@ -65,8 +65,15 @@ interface AtomicHabitRecommendationsArgs {
   signal?: AbortSignal;
 }
 
-const buildAtomicHabitsToneBlock = (lang: AtomicHabitsLang): string => {
-  const label = lang === "vi" ? "Vietnamese (calm, non-teaching)" : "English (reflective, non-optimizing)";
+/**
+ * Shared tone and language block for all Atomic Habits AI features.
+ * Encodes the global tone canon and language-specific guidance (en/vi).
+ */
+export const applyZenTone = (language: AtomicHabitsLang): string => {
+  const label =
+    language === "vi"
+      ? "Vietnamese (calm, non-teaching)"
+      : "English (reflective, non-optimizing)";
 
   return `
 GLOBAL TONE RULES (MANDATORY):
@@ -75,6 +82,29 @@ GLOBAL TONE RULES (MANDATORY):
 - No productivity or hustle-culture jargon.
 - Focus on returning, not perfection.
 - Output language: ${label}.
+`;
+};
+
+/**
+ * Shared profile + activity context block for Atomic Habits AI prompts.
+ * Use with applyZenTone(language) so every AI call respects tone and language.
+ */
+export const buildAtomicHabitsPromptContext = (
+  profile: UserProfileContext,
+  activity: ActivitySnapshot,
+  language: AtomicHabitsLang,
+): string => {
+  return `
+User profile:
+- id: ${profile.id}
+- name: ${profile.name ?? ""}
+- main goal: ${profile.mainGoal ?? ""}
+- identity: ${profile.identityDescription ?? ""}
+
+Recent activity snapshot:
+- recentCompletions: ${activity.recentCompletions}
+- focusMinutesLast7Days: ${activity.focusMinutesLast7Days}
+- inactivityDays: ${activity.inactivityDays}
 `;
 };
 
@@ -97,25 +127,16 @@ const buildAtomicHabitRecommendationsPrompt = (
   return `
 You are ZenHabit AI, an Atomic Habits–aligned assistant.
 
-User profile:
-- id: ${profile.id}
-- name: ${profile.name ?? ""}
-- main goal: ${profile.mainGoal ?? ""}
-- identity: ${profile.identityDescription ?? ""}
+${buildAtomicHabitsPromptContext(profile, activity, lang)}
 
 Habit summary (for context only): ${JSON.stringify(habitsSummary)}
-
-Recent activity snapshot:
-- recentCompletions: ${activity.recentCompletions}
-- focusMinutesLast7Days: ${activity.focusMinutesLast7Days}
-- inactivityDays: ${activity.inactivityDays}
 
 TASK:
 - Propose up to 3 tiny habits the user can do TODAY, each taking at most 10 minutes.
 - Apply Atomic Habits laws: Make it Obvious, Make it Attractive, Make it Easy.
 - Focus on *returning* and consistency, never on guilt or optimization.
 
-${buildAtomicHabitsToneBlock(lang)}
+${applyZenTone(lang)}
 
 OUTPUT FORMAT:
 Return ONLY valid JSON matching this schema:
@@ -221,20 +242,11 @@ const buildZenSenseiInsightPrompt = (
   return `
 You are Zen Sensei, a quiet, grounded guide.
 
-User profile:
-- id: ${profile.id}
-- name: ${profile.name ?? ""}
-- main goal: ${profile.mainGoal ?? ""}
-- identity: ${profile.identityDescription ?? ""}
-
-Recent activity snapshot:
-- recentCompletions: ${activity.recentCompletions}
-- focusMinutesLast7Days: ${activity.focusMinutesLast7Days}
-- inactivityDays: ${activity.inactivityDays}
+${buildAtomicHabitsPromptContext(profile, activity, lang)}
 
 Insight type: ${insightType}
 
-${buildAtomicHabitsToneBlock(lang)}
+${applyZenTone(lang)}
 
 ADDITIONAL ZEN SENSEI RULES:
 - Treat missing one day as normal.
